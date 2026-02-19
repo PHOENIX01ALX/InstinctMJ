@@ -14,6 +14,7 @@ from .grouped_ray_caster import GroupedRayCaster
 
 if TYPE_CHECKING:
     from .grouped_ray_caster_camera_cfg import GroupedRayCasterCameraCfg
+    from mjlab.viewer.debug_visualizer import DebugVisualizer
 
 
 @dataclass
@@ -396,30 +397,51 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         if "normals" in self.cfg.data_types:
             self._camera_data.output["normals"] = self._normals_w.view(-1, *self.image_shape, 3)
 
-    def debug_vis(self, visualizer) -> None:
+    def debug_vis(self, visualizer: "DebugVisualizer") -> None:
         """Debug visualization for the grouped ray-caster camera.
 
-        NOTE(migration): Original IsaacLab used _debug_vis_callback(event).
-        Adapted to mjlab's debug_vis(visualizer) interface.
+        Uses mjlab DebugVisualizer native API.
         """
         if not self.cfg.debug_vis:
             return
         if self.ray_hits_w is None:
             return
-        viz_points = self.ray_hits_w.reshape(-1, 3)
-        viz_points = viz_points[~torch.any(torch.isinf(viz_points), dim=1)]
         assert self._camera_data.pos_w is not None and self._camera_data.quat_w_world is not None
-        translations = torch.cat([viz_points, self._camera_data.pos_w], dim=0)
-        orientations = torch.cat(
-            [torch.zeros((viz_points.shape[0], 4), device=self.device), self._camera_data.quat_w_world], dim=0
-        )
-        marker_indices = torch.cat(
-            [
-                torch.zeros(viz_points.shape[0], dtype=torch.int, device=self.device),
-                torch.ones(self._view.count, dtype=torch.int, device=self.device),
-            ]
-        )
-        visualizer.visualize(translations, orientations, marker_indices=marker_indices)
+
+        env_ids = list(visualizer.get_env_indices(self._view.count))
+        if not env_ids:
+            return
+
+        meansize = max(float(visualizer.meansize), 1e-6)
+        point_radius = 0.003 * meansize
+        frame_scale = 0.15 * meansize
+        frame_axis_radius = 0.01 * meansize
+
+        viz_points = self.ray_hits_w[env_ids].reshape(-1, 3)
+        viz_points = viz_points[torch.isfinite(viz_points).all(dim=1)]
+        max_points = 256
+        if viz_points.shape[0] > max_points:
+            stride = max(1, viz_points.shape[0] // max_points)
+            viz_points = viz_points[::stride]
+
+        for point in viz_points:
+            visualizer.add_sphere(
+                center=point,
+                radius=point_radius,
+                color=(1.0, 0.1, 0.1, 0.6),
+            )
+
+        camera_pos = self._camera_data.pos_w[env_ids]
+        camera_quat = self._camera_data.quat_w_world[env_ids]
+        camera_rot = math_utils.matrix_from_quat(camera_quat)
+        for idx in range(len(env_ids)):
+            visualizer.add_frame(
+                position=camera_pos[idx],
+                rotation_matrix=camera_rot[idx],
+                scale=frame_scale,
+                axis_radius=frame_axis_radius,
+                alpha=0.9,
+            )
 
     """
     Private Helpers

@@ -824,5 +824,8 @@ class PerceptiveShadowingEnvCfg(InstinctLabRLEnvCfg):
         self.episode_length_s = 10.0
         # simulation settings
         self.sim.mujoco.timestep = 1.0 / 50.0 / self.decimation
+        # Contact budget for perceptive shadowing scene (avoid broadphase overflow warnings in play).
+        self.sim.nconmax = 100
+        self.sim.njmax = 300
 
         # All managers are already dicts, no conversion needed!

@@ -91,6 +91,41 @@ def points_penetrate_cylinder_kernel(
 
 
 @wp.kernel(enable_backward=False)
+def raycast_mesh_kernel(
+    mesh: wp.uint64,
+    ray_starts: wp.array(dtype=wp.vec3),
+    ray_directions: wp.array(dtype=wp.vec3),
+    ray_hits: wp.array(dtype=wp.vec3),
+    ray_distance: wp.array(dtype=wp.float32),
+    ray_normal: wp.array(dtype=wp.vec3),
+    ray_face_id: wp.array(dtype=wp.int32),
+    max_dist: float = 1e6,
+    return_distance: int = False,
+    return_normal: int = False,
+    return_face_id: int = False,
+):
+    tid = wp.tid()
+    t = float(0.0)  # hit distance along ray
+    u = float(0.0)  # hit face barycentric u
+    v = float(0.0)  # hit face barycentric v
+    sign = float(0.0)  # hit face sign
+    n = wp.vec3()  # hit face normal
+    f = int(0)  # hit face index
+
+    # ray cast against the mesh and store the hit position
+    hit_success = wp.mesh_query_ray(mesh, ray_starts[tid], ray_directions[tid], max_dist, t, u, v, sign, n, f)
+
+    if hit_success:
+        ray_hits[tid] = ray_starts[tid] + ray_directions[tid] * t
+        if return_distance == 1:
+            ray_distance[tid] = t
+        if return_normal == 1:
+            ray_normal[tid] = n
+        if return_face_id == 1:
+            ray_face_id[tid] = f
+
+
+@wp.kernel(enable_backward=False)
 def raycast_mesh_kernel_grouped_transformed(
     mesh_prototype_ids: wp.array(dtype=wp.uint64),  # all meshes in the scene
     mesh_transforms: wp.array(dtype=wp.transform),  # transforms of the meshes

@@ -5,6 +5,8 @@ from collections.abc import Sequence
 import torch
 
 from mjlab.envs import ManagerBasedRlEnv
+from mjlab.managers import RewardTermCfg
+from mjlab.utils.logging import print_info
 from mjlab.viewer.debug_visualizer import DebugVisualizer
 
 from instinct_mjlab.managers import MultiRewardCfg, MultiRewardManager
@@ -17,25 +19,47 @@ class InstinctRlEnv(ManagerBasedRlEnv):
   """
 
   def load_managers(self) -> None:
-    # check and routing the reward manager to the multi reward manager
-    reward_group_cfg = None
-    if isinstance(self.cfg.rewards, MultiRewardCfg):
-      reward_group_cfg = self.cfg.rewards
+    # Route Instinct tasks through MultiRewardManager so reward logging matches
+    # InstinctLab conventions:
+    #   Episode_Reward/rewards_<term>/{max_episode_len_s,sum,timestep}
+    reward_group_cfg = self._as_multi_reward_cfg(self.cfg.rewards)
+    if reward_group_cfg is not None:
       self.cfg.rewards = {}
 
     super().load_managers()
 
-    # replace the parent class's reward manager
+    # Replace parent reward manager with MultiRewardManager when requested.
     if reward_group_cfg is not None:
       self.cfg.rewards = reward_group_cfg
       self.reward_manager = MultiRewardManager(
         self.cfg.rewards, self, scale_by_dt=self.cfg.scale_rewards_by_dt
       )
+      print_info(f"[INFO] {self.reward_manager}")
 
     monitor_cfg = getattr(self.cfg, "monitors", None)
     if monitor_cfg is None:
       monitor_cfg = {}
     self.monitor_manager = MonitorManager(monitor_cfg, self)
+
+  @staticmethod
+  def _as_multi_reward_cfg(rewards_cfg):
+    """Convert reward config into a multi-reward group config when possible.
+
+    - Keep existing MultiRewardCfg as-is.
+    - For flat dict[str, RewardTermCfg], wrap into {"rewards": ...}.
+    - For grouped dicts (dict[str, dict[str, RewardTermCfg]]), keep as-is.
+    """
+    if isinstance(rewards_cfg, MultiRewardCfg):
+      return rewards_cfg
+    if isinstance(rewards_cfg, dict):
+      first_non_none = next(
+        (value for value in rewards_cfg.values() if value is not None),
+        None,
+      )
+      if first_non_none is None or isinstance(first_non_none, RewardTermCfg):
+        return {"rewards": rewards_cfg}
+      return rewards_cfg
+    return None
 
   def setup_manager_visualizers(self) -> None:
     super().setup_manager_visualizers()

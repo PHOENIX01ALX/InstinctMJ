@@ -89,6 +89,7 @@ _PARKOUR_DEPTH_HISTORY_LENGTH = 37
 _PARKOUR_DEPTH_SKIP_FRAMES = 5
 _PARKOUR_DEPTH_OUTPUT_FRAMES = 8
 _PARKOUR_DEPTH_DELAYED_FRAME_RANGES = (0, 1)
+_PARKOUR_WALL_ALIGNMENT_BORDER_WIDTH = 0.05
 _BASE_VELOCITY_COMMAND_NAME = "base_velocity"
 _FEET_CONTACT_SENSOR_NAME = "contact_forces"
 _TORSO_CONTACT_SENSOR_NAME = "torso_contact_forces"
@@ -165,6 +166,13 @@ ROUGH_TERRAINS_CFG = FiledTerrainGeneratorCfg(
   vertical_scale=0.005,
   slope_threshold=1.0,
   use_cache=False,
+  legacy_two_arg_collision_mode="hfield",
+  hfield_resolution=0.10,
+  hfield_base_thickness_ratio=1.0,
+  hfield_num_workers=0,
+  hfield_raycast_backend="gpu",
+  hfield_gpu_device="cuda:0",
+  hfield_gpu_batch_size=262144,
   curriculum=True,
   add_lights=True,
   sub_terrains={
@@ -176,6 +184,7 @@ ROUGH_TERRAINS_CFG = FiledTerrainGeneratorCfg(
       fractal_lacunarity=2.0,
       fractal_gain=0.25,
       centering=True,
+      border_width=_PARKOUR_WALL_ALIGNMENT_BORDER_WIDTH,
       wall_prob=[0.3, 0.3, 0.3, 0.3],
       wall_height=5.0,
       wall_thickness=0.05,
@@ -193,6 +202,7 @@ ROUGH_TERRAINS_CFG = FiledTerrainGeneratorCfg(
       fractal_lacunarity=2.0,
       fractal_gain=0.25,
       centering=True,
+      border_width=_PARKOUR_WALL_ALIGNMENT_BORDER_WIDTH,
       wall_prob=[0.3, 0.3, 0.3, 0.3],
       wall_height=5.0,
       wall_thickness=0.05,
@@ -336,7 +346,7 @@ ROUGH_TERRAINS_CFG = FiledTerrainGeneratorCfg(
       obstacle_width_range=(0.8, 1.5),
       obstacle_height_range=(0.05, 0.45),
       platform_width=1.5,
-      border_width=0.0,
+      border_width=_PARKOUR_WALL_ALIGNMENT_BORDER_WIDTH,
       wall_prob=[0.3, 0.3, 0.3, 0.3],
       wall_height=5.0,
       wall_thickness=0.05,
@@ -378,7 +388,7 @@ ROUGH_TERRAINS_CFG = FiledTerrainGeneratorCfg(
       proportion=0.10,
       slope_range=(0.0, 0.7),
       platform_width=1.5,
-      border_width=1.0,
+      border_width=_PARKOUR_WALL_ALIGNMENT_BORDER_WIDTH,
       wall_prob=[0.3, 0.3, 0.3, 0.3],
       wall_height=5.0,
       wall_thickness=0.05,
@@ -438,6 +448,7 @@ def set_parkour_scene_sensors(cfg: ManagerBasedRlEnvCfg) -> None:
   torso_contact_sensor = ContactSensorCfg(
     name=_TORSO_CONTACT_SENSOR_NAME,
     primary=ContactMatch(mode="body", pattern="torso_link", entity="robot"),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
     fields=("found", "force"),
     reduce="netforce",
     track_air_time=False,
@@ -1165,14 +1176,17 @@ def set_parkour_terrain(cfg: ManagerBasedRlEnvCfg, play: bool) -> None:
 
 
 def set_parkour_scene_visual_style(cfg: ManagerBasedRlEnvCfg) -> None:
-  """Set parkour scene visual style (bright sky + bright ground)."""
+  """Set parkour scene visual style (restore checker-style terrain contrast)."""
   apply_scene_visual_style(
     cfg.scene,
     style_name="parkour",
     style_cfg=SceneVisualStyleCfg(
-      ground_rgb1=(0.92, 0.92, 0.92),
-      ground_rgb2=(0.92, 0.92, 0.92),
-      ground_mark_rgb=(0.92, 0.92, 0.92),
+      ground_builtin="checker",
+      ground_mark="edge",
+      ground_rgb1=(0.2, 0.3, 0.4),
+      ground_rgb2=(0.1, 0.2, 0.3),
+      ground_mark_rgb=(0.8, 0.8, 0.8),
+      ground_reflectance=0.2,
     ),
     preserve_collision_rgba=False,
   )

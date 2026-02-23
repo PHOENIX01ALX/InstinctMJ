@@ -76,30 +76,28 @@ def determine_motion_validity(filepath, args) -> tuple[str, bool]:
     joint_names = [j.name for j in robot_chain.get_joints()]
     knee_joint_idxs = [joint_names.index(name) for name in KNEE_JOINT_NAMES]
 
-    try:
-        if filepath.endswith("poses.npz"):
-            motion = np.load(os.path.join(args.datadir, filepath))
-            framerate = motion["mocap_framerate"]
-            poses = torch.from_numpy(motion["poses"]).to(torch.float32)
-            poses = poses[:, : 24 * 3].reshape(-1, 24, 3)
-            root_trans = torch.from_numpy(motion["trans"]).to(torch.float32)
-            traj_length_s = poses.shape[0] / framerate
-        elif filepath.endswith("retargetted.npz"):
-            motion = np.load(os.path.join(args.datadir, filepath), allow_pickle=True)
-            framerate = motion["framerate"]
-            retargetted_joint_names = (
-                motion["joint_names"] if isinstance(motion["joint_names"], list) else motion["joint_names"].tolist()
-            )
-            root_pos = torch.from_numpy(motion["base_pos_w"]).to(torch.float32)
-            root_quat = torch.from_numpy(motion["base_quat_w"]).to(torch.float32)
-            robot_joint_pos = torch.from_numpy(motion["joint_pos"]).to(torch.float32)
-            traj_length_s = root_pos.shape[0] / framerate
-            # re-order joint positions to match the order in robot chain
-            chain_joint_names = [j.name for j in robot_chain.get_joints()]
-            robot_joint_pos = robot_joint_pos[:, [retargetted_joint_names.index(name) for name in chain_joint_names]]
-    except Exception as e:
-        print("Error in loading", filepath, ":", e)
-        return filepath, False
+    if filepath.endswith("poses.npz"):
+        motion = np.load(os.path.join(args.datadir, filepath))
+        framerate = motion["mocap_framerate"]
+        poses = torch.from_numpy(motion["poses"]).to(torch.float32)
+        poses = poses[:, : 24 * 3].reshape(-1, 24, 3)
+        root_trans = torch.from_numpy(motion["trans"]).to(torch.float32)
+        traj_length_s = poses.shape[0] / framerate
+    elif filepath.endswith("retargetted.npz"):
+        motion = np.load(os.path.join(args.datadir, filepath), allow_pickle=True)
+        framerate = motion["framerate"]
+        retargetted_joint_names = (
+            motion["joint_names"] if isinstance(motion["joint_names"], list) else motion["joint_names"].tolist()
+        )
+        root_pos = torch.from_numpy(motion["base_pos_w"]).to(torch.float32)
+        root_quat = torch.from_numpy(motion["base_quat_w"]).to(torch.float32)
+        robot_joint_pos = torch.from_numpy(motion["joint_pos"]).to(torch.float32)
+        traj_length_s = root_pos.shape[0] / framerate
+        # re-order joint positions to match the order in robot chain
+        chain_joint_names = [j.name for j in robot_chain.get_joints()]
+        robot_joint_pos = robot_joint_pos[:, [retargetted_joint_names.index(name) for name in chain_joint_names]]
+    else:
+        raise ValueError(f"Unsupported motion file format: {filepath}")
 
     vel_smooth_frames = int(args.vel_smooth_window * framerate)
 
@@ -110,23 +108,15 @@ def determine_motion_validity(filepath, args) -> tuple[str, bool]:
 
     if filepath.endswith("poses.npz"):
         # Initializing the IK function and retargetting
-        try:
-            retargetting_func = HumanoidSmplRotationalIK(
-                robot_chain=robot_chain,
-                smpl_root_in_robot_link_name="pelvis",
-                translation_scaling=0.75,
-                translation_height_offset=0.0,
-            )
-        except Exception as e:
-            print(f"Error in initializing IK {filepath}:", e)
-            return filepath, False
-        try:
-            if filepath.endswith("poses.npz"):
-                robot_joint_pos, robot_root_poses = retargetting_func(poses, root_trans)
-            root_pos = robot_root_poses[:, :3]  # (batch, 3)
-            root_quat = robot_root_poses[:, 3:]  # (batch, 4)
-        except Exception as e:
-            print(f"Error in retargetting {filepath}:", e)
+        retargetting_func = HumanoidSmplRotationalIK(
+            robot_chain=robot_chain,
+            smpl_root_in_robot_link_name="pelvis",
+            translation_scaling=0.75,
+            translation_height_offset=0.0,
+        )
+        robot_joint_pos, robot_root_poses = retargetting_func(poses, root_trans)
+        root_pos = robot_root_poses[:, :3]  # (batch, 3)
+        root_quat = robot_root_poses[:, 3:]  # (batch, 4)
 
     # From here, we assume root_pos, root_quat, and robot_joint_pos are available
     root_pos, root_quat, robot_joint_pos = (
@@ -153,38 +143,34 @@ def determine_motion_validity(filepath, args) -> tuple[str, bool]:
 
     # compute the maximum angular velocity
     if args.max_angvel is not None:
-        try:
-            if args.angvel_frame == "world":
-                link_quat = link_quat_w
-            elif args.angvel_frame == "base":
-                link_quat = link_quat_b
-            link_axisang = math_utils.axis_angle_from_quat(link_quat)  # (batch, num_links, 3)
-            link_angvel = (
-                link_axisang[vel_smooth_frames:] - link_axisang[:-vel_smooth_frames]
-            ) / args.vel_smooth_window  # (batch-1, num_links, 3)
-            max_angvel = torch.max(torch.norm(link_angvel, dim=-1)).item()
-            if max_angvel > args.max_angvel:
-                max_angvel_idx = torch.argmax(torch.norm(link_angvel, dim=-1)).tolist()
-                max_angvel_frame_idx = max_angvel_idx // link_angvel.shape[1]
-                max_angvel_link_idx = max_angvel_idx % link_angvel.shape[1]
-                print(
-                    "Exceeding maximum angular velocity:",
-                    filepath,
-                    "framerate:",
-                    framerate,
-                    "reaches:",
-                    max_angvel,
-                    "at:",
-                    max_angvel_frame_idx,
-                    max_angvel_link_idx,
-                    "preframe:",
-                    link_axisang[max_angvel_frame_idx, max_angvel_link_idx],
-                    "postframe:",
-                    link_axisang[max_angvel_frame_idx + 1, max_angvel_link_idx],
-                )
-                return filepath, False
-        except Exception as e:
-            print(f"Error in computing angular velocity {filepath}:", e)
+        if args.angvel_frame == "world":
+            link_quat = link_quat_w
+        elif args.angvel_frame == "base":
+            link_quat = link_quat_b
+        link_axisang = math_utils.axis_angle_from_quat(link_quat)  # (batch, num_links, 3)
+        link_angvel = (
+            link_axisang[vel_smooth_frames:] - link_axisang[:-vel_smooth_frames]
+        ) / args.vel_smooth_window  # (batch-1, num_links, 3)
+        max_angvel = torch.max(torch.norm(link_angvel, dim=-1)).item()
+        if max_angvel > args.max_angvel:
+            max_angvel_idx = torch.argmax(torch.norm(link_angvel, dim=-1)).tolist()
+            max_angvel_frame_idx = max_angvel_idx // link_angvel.shape[1]
+            max_angvel_link_idx = max_angvel_idx % link_angvel.shape[1]
+            print(
+                "Exceeding maximum angular velocity:",
+                filepath,
+                "framerate:",
+                framerate,
+                "reaches:",
+                max_angvel,
+                "at:",
+                max_angvel_frame_idx,
+                max_angvel_link_idx,
+                "preframe:",
+                link_axisang[max_angvel_frame_idx, max_angvel_link_idx],
+                "postframe:",
+                link_axisang[max_angvel_frame_idx + 1, max_angvel_link_idx],
+            )
             return filepath, False
 
     link_airborne = (link_pos_w[:, :, 2] > args.airborne_height_threshold).all(dim=-1)  # (batch,)

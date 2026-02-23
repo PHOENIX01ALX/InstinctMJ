@@ -10,7 +10,7 @@ import torch
 
 from mjlab.entity import Entity
 from mjlab.entity.data import compute_velocity_from_cvel
-from mjlab.markers import VisualizationMarkers
+from instinct_mjlab.visualization.markers import VisualizationMarkers
 from mjlab.sensor import Sensor
 from mjlab.utils.lab_api import math as math_utils
 from mjlab.utils.lab_api import string as string_utils
@@ -18,7 +18,7 @@ from mjlab.utils.lab_api import string as string_utils
 from .volume_points_data import VolumePointsData
 
 if TYPE_CHECKING:
-    from mjlab.markers import VisualizationMarkersCfg
+    from instinct_mjlab.visualization.markers import VisualizationMarkersCfg
 
     from .volume_points_cfg import VolumePointsCfg
 

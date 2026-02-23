@@ -4,14 +4,12 @@ import numpy as np
 import scipy.interpolate as interpolate
 from typing import TYPE_CHECKING
 
-from mjlab.terrains.height_field.utils import height_field_to_mesh
-
 from instinct_mjlab.utils.perlin import generate_fractal_noise_2d
 
 if TYPE_CHECKING:
     from . import hf_terrains_cfg
 
-from .utils import generate_wall
+from .utils import generate_wall, height_field_to_mesh
 
 
 def generate_perlin_noise(difficulty: float, cfg: hf_terrains_cfg.PerlinPlaneTerrainCfg) -> np.ndarray:

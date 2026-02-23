@@ -4,11 +4,7 @@ from .config import (
   InstinctRlOnPolicyRunnerCfg,
   InstinctRlPpoAlgorithmCfg,
 )
-
-try:
-  from .vecenv_wrapper import InstinctRlVecEnvWrapper
-except Exception:  # pragma: no cover - optional until runtime deps are installed.
-  InstinctRlVecEnvWrapper = None  # type: ignore[assignment]
+from .vecenv_wrapper import InstinctRlVecEnvWrapper
 
 __all__ = [
   "InstinctRlActorCriticCfg",

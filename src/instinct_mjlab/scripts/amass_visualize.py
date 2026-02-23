@@ -149,11 +149,7 @@ def run_visualize(cfg: VisualizeConfig) -> None:
     # Iterate through motions and visualize
     for motion_idx, motion_file in enumerate(motion_files):
         print(f"[INFO] Loading motion {motion_idx + 1}/{len(motion_files)}: {motion_file}")
-        try:
-            root_pos, root_quat, joint_pos, framerate = _load_single_motion(motion_file, cfg)
-        except Exception as e:
-            print(f"[WARN] Failed to load {motion_file}: {e}")
-            continue
+        root_pos, root_quat, joint_pos, framerate = _load_single_motion(motion_file, cfg)
 
         num_frames = root_pos.shape[0]
         print(

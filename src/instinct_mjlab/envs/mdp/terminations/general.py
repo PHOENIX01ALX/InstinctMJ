@@ -6,7 +6,7 @@ import torch
 from typing import TYPE_CHECKING, Sequence
 
 from mjlab.managers import ManagerTermBase, ManagerTermBaseCfg, SceneEntityCfg
-from mjlab.sensors import ContactSensor
+from mjlab.sensor import ContactSensor
 
 if TYPE_CHECKING:
     from mjlab.assets import RigidObject

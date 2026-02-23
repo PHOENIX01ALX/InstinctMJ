@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import atexit
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import hashlib
 import numpy as np
 import os
+from scipy import ndimage
 import scipy.spatial.transform as tf
 import torch
 import trimesh
@@ -11,11 +13,7 @@ import uuid
 import yaml
 from typing import TYPE_CHECKING
 
-try:
-    import coacd
-    _COACD_AVAILABLE = True
-except ImportError:
-    _COACD_AVAILABLE = False
+import coacd
 
 # Cache CoACD decomposition results keyed by (abspath, params...) so the same
 # STL is only decomposed once even when the terrain generator creates many tiles.
@@ -28,11 +26,12 @@ _COACD_LOG_LEVEL_SET: str | None = None
 # Avoids re-running ray-casting when the same STL is used across multiple terrain tiles.
 _HFIELD_HEIGHT_CACHE: dict[tuple, np.ndarray] = {}
 _HFIELD_CACHE_VERSION = 4
+_HFIELD_RAYCAST_EXECUTORS: dict[int, ProcessPoolExecutor] = {}
 
 import mujoco
 
 from mjlab.terrains.terrain_generator import TerrainGeometry, TerrainOutput
-from mjlab.terrains.height_field.utils import convert_height_field_to_mesh
+from instinct_mjlab.terrains.height_field.utils import convert_height_field_to_mesh
 
 from ..height_field.hf_terrains import generate_perlin_noise
 from .utils import crop_terrain_mesh_aabb, generate_wall
@@ -41,24 +40,25 @@ if TYPE_CHECKING:
     from . import mesh_terrains_cfg
 
 
+def _shutdown_hfield_raycast_executors() -> None:
+    for executor in _HFIELD_RAYCAST_EXECUTORS.values():
+        executor.shutdown(wait=False, cancel_futures=True)
+    _HFIELD_RAYCAST_EXECUTORS.clear()
+
+
+atexit.register(_shutdown_hfield_raycast_executors)
+
+
 def _set_coacd_log_level(level: str) -> None:
     """Set CoACD logger level once per process."""
     global _COACD_LOG_LEVEL_SET
-    if not _COACD_AVAILABLE:
-        return
     level = str(level)
     if _COACD_LOG_LEVEL_SET == level:
         return
     if not hasattr(coacd, "set_log_level"):
         return
-    candidate_levels = (level, "off", "error", "warn")
-    for candidate in candidate_levels:
-        try:
-            coacd.set_log_level(candidate)
-            _COACD_LOG_LEVEL_SET = candidate
-            return
-        except Exception:
-            continue
+    coacd.set_log_level(level)
+    _COACD_LOG_LEVEL_SET = level
 
 
 def _top_surface_samples(
@@ -186,12 +186,10 @@ def _save_coacd_parts_to_disk(cache_path: str, parts_arrays: list[tuple[np.ndarr
         payload[f"faces_{part_idx}"] = np.asarray(faces, dtype=np.int32)
 
     tmp_cache_path = f"{cache_path}.{uuid.uuid4().hex}.tmp.npz"
-    try:
-        np.savez_compressed(tmp_cache_path, **payload)
-        os.replace(tmp_cache_path, cache_path)
-    finally:
-        if os.path.exists(tmp_cache_path):
-            os.remove(tmp_cache_path)
+    np.savez_compressed(tmp_cache_path, **payload)
+    os.replace(tmp_cache_path, cache_path)
+    if os.path.exists(tmp_cache_path):
+        os.remove(tmp_cache_path)
 
 
 def _compute_motion_matched_border_height(
@@ -311,11 +309,6 @@ def _coacd_prewarm_worker(
     job: tuple[str, str, tuple[float, float], dict, tuple, str, str],
 ) -> tuple[str, str, int]:
     """Worker job for CoACD cache prewarm."""
-    if not _COACD_AVAILABLE:
-        raise ImportError(
-            "CoACD is required for collision_coacd=True. "
-            "Install it with: pip install coacd"
-        )
     terrain_file, terrain_abspath, size, coacd_kwargs, cache_key, coacd_log_level, cache_path = job
     terrain_mesh, _ = _load_motion_matched_terrain_mesh(
         terrain_abspath=terrain_abspath,
@@ -631,12 +624,6 @@ def _add_collision_coacd(
     Results are cached in memory and on disk so the same STL is only decomposed
     once across terrain tiles and across process restarts.
     """
-    if not _COACD_AVAILABLE:
-        raise ImportError(
-            "CoACD is required for collision_coacd=True. "
-            "Install it with: pip install coacd"
-        )
-
     cache_key = _coacd_cache_key(cfg, terrain_abspath)
     cache_path = _coacd_cache_path(cfg, terrain_abspath, cache_key)
     coacd_kwargs = _coacd_run_kwargs(cfg)
@@ -647,13 +634,7 @@ def _add_collision_coacd(
     else:
         parts_arrays = None
         if cfg.collision_coacd_use_disk_cache and os.path.exists(cache_path):
-            try:
-                parts_arrays = _load_coacd_parts_from_disk(cache_path)
-            except (OSError, ValueError) as exc:
-                print(
-                    f"[TerrainImporter] CoACD disk cache load failed, recomputing: "
-                    f"{cache_path}, error={exc}"
-                )
+            parts_arrays = _load_coacd_parts_from_disk(cache_path)
 
         if parts_arrays is None:
             parts_arrays = _run_coacd_decomposition(
@@ -750,6 +731,47 @@ def _raycast_rows_worker(
     return np.empty(0, dtype=np.int64), np.empty(0, dtype=np.float64)
 
 
+def _raycast_hfield_gpu(
+    terrain_mesh: trimesh.Trimesh,
+    ray_origins: np.ndarray,
+    n_rays: int,
+    gpu_device: str,
+    batch_size: int,
+) -> np.ndarray:
+    """Ray-cast all hfield sampling rays on GPU using Warp."""
+    from instinct_mjlab.utils.warp import convert_to_warp_mesh, raycast_mesh
+
+    if batch_size <= 0:
+        raise ValueError(f"collision_hfield_gpu_batch_size must be > 0. Got: {batch_size}")
+
+    device = torch.device(gpu_device)
+    if device.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError(
+            "collision_hfield_raycast_backend='gpu' requires CUDA, but torch.cuda.is_available() is False."
+        )
+
+    wp_mesh = convert_to_warp_mesh(
+        np.asarray(terrain_mesh.vertices, dtype=np.float64),
+        np.asarray(terrain_mesh.faces, dtype=np.int32),
+        device=str(device),
+    )
+
+    height = np.full(n_rays, np.nan, dtype=np.float64)
+    for start in range(0, n_rays, batch_size):
+        end = min(start + batch_size, n_rays)
+        origins = torch.from_numpy(ray_origins[start:end]).to(device=device, dtype=torch.float32)
+        directions = torch.zeros_like(origins)
+        directions[:, 2] = -1.0
+        ray_hits = raycast_mesh(origins, directions, wp_mesh)[0]
+        ray_hits_z = ray_hits[:, 2]
+        valid_hit_mask = torch.isfinite(ray_hits_z)
+        if bool(valid_hit_mask.any()):
+            local_indices = torch.nonzero(valid_hit_mask, as_tuple=False).flatten()
+            global_indices = local_indices.cpu().numpy() + start
+            height[global_indices] = ray_hits_z[valid_hit_mask].detach().cpu().numpy().astype(np.float64)
+    return height
+
+
 def _raycast_hfield_parallel(
     terrain_mesh: trimesh.Trimesh,
     ray_origins: np.ndarray,
@@ -794,20 +816,46 @@ def _raycast_hfield_parallel(
                 # Subsequent hits: keep the maximum (top surface).
                 np.maximum.at(height, global_indices[~nan_mask], hit_z[~nan_mask])
     else:
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            futures = []
-            chunk_starts = list(range(0, n_rays, chunk_size))
-            for chunk in chunks:
-                futures.append(executor.submit(_raycast_rows_worker, chunk))
-            for chunk_start, future in zip(chunk_starts, futures):
-                local_indices, hit_z = future.result()
-                if len(local_indices) > 0:
-                    global_indices = local_indices + chunk_start
-                    nan_mask = np.isnan(height[global_indices])
-                    height[global_indices[nan_mask]] = hit_z[nan_mask]
-                    np.maximum.at(height, global_indices[~nan_mask], hit_z[~nan_mask])
+        executor = _HFIELD_RAYCAST_EXECUTORS.get(num_workers)
+        if executor is None:
+            executor = ProcessPoolExecutor(max_workers=num_workers)
+            _HFIELD_RAYCAST_EXECUTORS[num_workers] = executor
+        futures = []
+        chunk_starts = list(range(0, n_rays, chunk_size))
+        for chunk in chunks:
+            futures.append(executor.submit(_raycast_rows_worker, chunk))
+        for chunk_start, future in zip(chunk_starts, futures):
+            local_indices, hit_z = future.result()
+            if len(local_indices) > 0:
+                global_indices = local_indices + chunk_start
+                nan_mask = np.isnan(height[global_indices])
+                height[global_indices[nan_mask]] = hit_z[nan_mask]
+                np.maximum.at(height, global_indices[~nan_mask], hit_z[~nan_mask])
 
     return height
+
+
+def _fill_missing_heights_with_nearest(
+    raw_height: np.ndarray,
+    hit_mask: np.ndarray,
+    fallback_value: float,
+) -> np.ndarray:
+    """Fill NaN (miss) cells with nearest valid hit heights to avoid artificial seams."""
+    if raw_height.shape != hit_mask.shape:
+        raise ValueError("raw_height and hit_mask must have the same shape.")
+    if np.all(hit_mask):
+        return raw_height
+    if not np.any(hit_mask):
+        return np.full_like(raw_height, fallback_value, dtype=np.float64)
+
+    filled = raw_height.copy()
+    nearest_indices = ndimage.distance_transform_edt(
+        ~hit_mask,
+        return_distances=False,
+        return_indices=True,
+    )
+    filled[~hit_mask] = filled[nearest_indices[0][~hit_mask], nearest_indices[1][~hit_mask]]
+    return filled
 
 
 def _add_collision_hfield_from_mesh(
@@ -868,37 +916,42 @@ def _add_collision_hfield_from_mesh(
 
     # 2. Disk cache hit.
     if height is None and cache_key is not None and cfg.collision_hfield_use_disk_cache and os.path.exists(cache_path):
-        try:
-            with np.load(cache_path, allow_pickle=False) as npz:
-                loaded = np.asarray(npz["height"], dtype=np.float64)
-                if loaded.shape == (nrow, ncol):
-                    height = loaded
-                    _HFIELD_HEIGHT_CACHE[cache_key] = height
-        except (OSError, ValueError, KeyError) as exc:
-            print(
-                f"[TerrainImporter] hfield disk cache load failed, recomputing: "
-                f"{cache_path}, error={exc}"
+        with np.load(cache_path, allow_pickle=False) as npz:
+            loaded = np.asarray(npz["height"], dtype=np.float64)
+            if loaded.shape == (nrow, ncol):
+                height = loaded
+                _HFIELD_HEIGHT_CACHE[cache_key] = height
+
+    # 3. Compute via ray-casting.
+    if height is None:
+        raycast_backend = str(getattr(cfg, "collision_hfield_raycast_backend", "cpu"))
+        if raycast_backend not in ("cpu", "gpu"):
+            raise ValueError(
+                "collision_hfield_raycast_backend must be 'cpu' or 'gpu'. "
+                f"Got: {raycast_backend!r}"
             )
 
-    # 3. Compute via parallel ray-casting.
-    if height is None:
-        num_workers = int(cfg.collision_hfield_num_workers)
-        if num_workers <= 0:
-            num_workers = max(os.cpu_count() or 1, 1)
+        if raycast_backend == "gpu":
+            gpu_device = str(getattr(cfg, "collision_hfield_gpu_device", "cuda"))
+            gpu_batch_size = int(getattr(cfg, "collision_hfield_gpu_batch_size", 262144))
+            raw = _raycast_hfield_gpu(
+                terrain_mesh=terrain_mesh,
+                ray_origins=ray_origins,
+                n_rays=n_rays,
+                gpu_device=gpu_device,
+                batch_size=gpu_batch_size,
+            ).reshape(nrow, ncol)
+        else:
+            num_workers = int(cfg.collision_hfield_num_workers)
+            if num_workers <= 0:
+                num_workers = max(os.cpu_count() or 1, 1)
+            raw = _raycast_hfield_parallel(
+                terrain_mesh=terrain_mesh,
+                ray_origins=ray_origins,
+                n_rays=n_rays,
+                num_workers=num_workers,
+            ).reshape(nrow, ncol)
 
-        raw = _raycast_hfield_parallel(
-            terrain_mesh=terrain_mesh,
-            ray_origins=ray_origins,
-            n_rays=n_rays,
-            num_workers=num_workers,
-        ).reshape(nrow, ncol)
-
-        # Grid points that missed the mesh entirely are NaN.
-        # MuJoCo hfield is a solid rectangular block — there is no way to create a "hole".
-        # To prevent miss-area cells from producing spurious contacts, we sink them far
-        # below the real terrain by subtracting a large depth offset.  This makes their
-        # normalized_height ≈ 0, which maps to the hfield bottom plate deep underground.
-        # The real terrain cells keep their hit z values and align correctly with the mesh.
         hit_mask = ~np.isnan(raw)
         if np.any(hit_mask):
             hit_z_min = float(np.min(raw[hit_mask]))
@@ -906,10 +959,18 @@ def _add_collision_hfield_from_mesh(
         else:
             hit_z_min = mesh_z_min
             hit_z_max = mesh_z_min
-        # Sink miss cells 10× the terrain height range below the terrain floor.
-        terrain_height_range = max(hit_z_max - hit_z_min, 1.0)
-        sink_depth = terrain_height_range * 10.0
-        height = np.where(hit_mask, raw, hit_z_min - sink_depth)
+
+        sink_miss_cells = bool(getattr(cfg, "collision_hfield_sink_miss_cells", True))
+        if sink_miss_cells:
+            # Motion-matched terrain may intentionally contain out-of-mesh areas:
+            # keep old behavior and sink misses deep below the surface.
+            terrain_height_range = max(hit_z_max - hit_z_min, 1.0)
+            sink_depth = terrain_height_range * 10.0
+            height = np.where(hit_mask, raw, hit_z_min - sink_depth)
+        else:
+            # For tiled parkour terrains, filling misses with nearest valid heights avoids
+            # seam cracks caused by sparse ray miss cells near tile boundaries.
+            height = _fill_missing_heights_with_nearest(raw, hit_mask, fallback_value=hit_z_min)
 
         # Store in memory cache.
         if cache_key is not None:
@@ -919,17 +980,36 @@ def _add_collision_hfield_from_mesh(
         if cache_key is not None and cfg.collision_hfield_use_disk_cache and cache_path is not None:
             os.makedirs(os.path.dirname(cache_path), exist_ok=True)
             tmp_path = f"{cache_path}.{uuid.uuid4().hex}.tmp.npz"
-            try:
-                np.savez_compressed(tmp_path, height=height.astype(np.float32))
-                os.replace(tmp_path, cache_path)
-            finally:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
+            np.savez_compressed(tmp_path, height=height.astype(np.float32))
+            os.replace(tmp_path, cache_path)
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
-    # elevation_min includes the sunken miss cells; elevation_max is the true terrain top.
-    # normalized_height maps [elevation_min .. elevation_max] -> [0 .. 1].
-    # Miss cells get normalized_height ≈ 0 (deep underground); hit cells span the upper
-    # portion of the [0..1] range and align correctly with the visual mesh.
+    stitch_edges = bool(getattr(cfg, "collision_hfield_stitch_edges", False))
+    stitch_border_pixels = int(getattr(cfg, "collision_hfield_stitch_border_pixels", 0))
+    if stitch_edges and stitch_border_pixels > 0:
+        max_border = min(nrow // 2, ncol // 2)
+        stitch_border_pixels = max(1, min(stitch_border_pixels, max_border))
+        stitch_height = getattr(cfg, "collision_hfield_stitch_height", None)
+        if stitch_height is None:
+            edge_values = np.concatenate([
+                height[:stitch_border_pixels, :].reshape(-1),
+                height[-stitch_border_pixels:, :].reshape(-1),
+                height[:, :stitch_border_pixels].reshape(-1),
+                height[:, -stitch_border_pixels:].reshape(-1),
+            ])
+            edge_values = edge_values[np.isfinite(edge_values)]
+            if edge_values.size > 0:
+                stitch_height = float(np.mean(edge_values))
+            else:
+                stitch_height = float(np.min(height))
+        else:
+            stitch_height = float(stitch_height)
+        height[:stitch_border_pixels, :] = stitch_height
+        height[-stitch_border_pixels:, :] = stitch_height
+        height[:, :stitch_border_pixels] = stitch_height
+        height[:, -stitch_border_pixels:] = stitch_height
+
     elevation_min = float(np.min(height))
     elevation_max = float(np.max(height))
     elevation_range = max(elevation_max - elevation_min, 1.0e-6)
@@ -969,6 +1049,316 @@ def _add_collision_hfield_from_mesh(
     hfield_geom.group = 3
     hfield_geom.rgba[:] = (0.0, 0.0, 0.0, 0.0)
     return TerrainGeometry(geom=hfield_geom, hfield=hfield)
+
+
+def _detect_floor_z(height_array: np.ndarray, percentile: float = 10.0) -> float:
+    """Detect floor z-level from heightfield by finding the dominant low z-region.
+
+    For scanned concave terrains (floor + walls), the floor is typically
+    the large flat region at the lowest z-values. We use a low percentile
+    of the height distribution to robustly estimate the floor level.
+
+    Args:
+        height_array: 2D array of z-heights from ray-casting.
+        percentile: Percentile to use for floor detection (default 10%).
+
+    Returns:
+        Estimated floor z-level.
+    """
+    # Filter out NaN and very low outliers (sunk miss cells)
+    valid_heights = height_array[~np.isnan(height_array)]
+    if len(valid_heights) == 0:
+        return 0.0
+
+    # Use percentile to find floor level (robust to walls)
+    floor_z = float(np.percentile(valid_heights, percentile))
+    return floor_z
+
+
+def _create_visual_hfield_from_mesh(
+    cfg: mesh_terrains_cfg.STLHeightfieldTerrainCfg,
+    spec: mujoco.MjSpec,
+    terrain_mesh: trimesh.Trimesh,
+    terrain_idx: int,
+    terrain_abspath: str | None = None,
+) -> tuple[TerrainGeometry, float, float, float]:
+    """Create a visual+collision heightfield from terrain mesh by ray-casting.
+
+    Returns:
+        Tuple of (TerrainGeometry, elevation_min, elevation_max, floor_z)
+    """
+    resolution = float(cfg.hfield_resolution)
+    if resolution <= 0.0:
+        raise ValueError("hfield_resolution must be greater than zero.")
+
+    nrow = max(int(np.round(cfg.size[0] / resolution)) + 1, 2)
+    ncol = max(int(np.round(cfg.size[1] / resolution)) + 1, 2)
+    x = np.linspace(0.0, cfg.size[0], nrow, dtype=np.float64)
+    y = np.linspace(0.0, cfg.size[1], ncol, dtype=np.float64)
+    xx, yy = np.meshgrid(x, y, indexing="ij")
+
+    mesh_z_max = float(terrain_mesh.bounds[1, 2])
+    mesh_z_min = float(terrain_mesh.bounds[0, 2])
+    ray_origin_z = mesh_z_max + 1.0
+
+    n_rays = nrow * ncol
+    ray_origins = np.column_stack([
+        xx.reshape(-1),
+        yy.reshape(-1),
+        np.full(n_rays, ray_origin_z, dtype=np.float64),
+    ])
+
+    # --- Cache lookup ---
+    cache_key: tuple | None = None
+    cache_path: str | None = None
+    if terrain_abspath is not None:
+        terrain_abspath = os.path.abspath(terrain_abspath)
+        cache_key = _hfield_cache_key(terrain_abspath, resolution, (cfg.size[0], cfg.size[1]))
+        cache_path = _hfield_disk_cache_path(
+            terrain_abspath, cache_key, str(cfg.hfield_cache_dirname)
+        )
+
+    height: np.ndarray | None = None
+
+    # 1. In-memory cache hit.
+    if cache_key is not None:
+        height = _HFIELD_HEIGHT_CACHE.get(cache_key)
+
+    # 2. Disk cache hit.
+    if height is None and cache_key is not None and cfg.hfield_use_disk_cache and cache_path and os.path.exists(cache_path):
+        with np.load(cache_path, allow_pickle=False) as npz:
+            loaded = np.asarray(npz["height"], dtype=np.float64)
+            if loaded.shape == (nrow, ncol):
+                height = loaded
+                _HFIELD_HEIGHT_CACHE[cache_key] = height
+
+    # 3. Compute via parallel ray-casting.
+    if height is None:
+        num_workers = int(cfg.hfield_num_workers)
+        if num_workers <= 0:
+            num_workers = max(os.cpu_count() or 1, 1)
+
+        raw = _raycast_hfield_parallel(
+            terrain_mesh=terrain_mesh,
+            ray_origins=ray_origins,
+            n_rays=n_rays,
+            num_workers=num_workers,
+        ).reshape(nrow, ncol)
+
+        hit_mask = ~np.isnan(raw)
+        if np.any(hit_mask):
+            hit_z_min = float(np.min(raw[hit_mask]))
+            hit_z_max = float(np.max(raw[hit_mask]))
+        else:
+            hit_z_min = mesh_z_min
+            hit_z_max = mesh_z_min
+
+        sink_miss_cells = bool(getattr(cfg, "hfield_sink_miss_cells", True))
+        if sink_miss_cells:
+            terrain_height_range = max(hit_z_max - hit_z_min, 1.0)
+            sink_depth = terrain_height_range * 10.0
+            height = np.where(hit_mask, raw, hit_z_min - sink_depth)
+        else:
+            height = _fill_missing_heights_with_nearest(raw, hit_mask, fallback_value=hit_z_min)
+
+        if cache_key is not None:
+            _HFIELD_HEIGHT_CACHE[cache_key] = height
+
+        if cache_key is not None and cfg.hfield_use_disk_cache and cache_path is not None:
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            tmp_path = f"{cache_path}.{uuid.uuid4().hex}.tmp.npz"
+            np.savez_compressed(tmp_path, height=height.astype(np.float32))
+            os.replace(tmp_path, cache_path)
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+    # Detect floor z-level from the heightfield data
+    floor_z = _detect_floor_z(height, percentile=10.0)
+
+    # Shift heights so floor is at z=0 (before applying user offset)
+    height = height - floor_z
+
+    # Apply user-specified floor z offset for final alignment
+    height = height + cfg.hfield_floor_z_offset
+
+    elevation_min = float(np.min(height))
+    elevation_max = float(np.max(height))
+    elevation_range = max(elevation_max - elevation_min, 1.0e-6)
+    normalized_height = (height - elevation_min) / elevation_range
+    # Use fixed base thickness (small value sufficient for collision stability)
+    base_thickness = max(float(cfg.hfield_base_thickness), 1.0e-6)
+    # Store original floor_z for return
+    detected_floor_z = floor_z
+
+    hfield_name = f"stl_hfield_t{terrain_idx}_{uuid.uuid4().hex}"
+    hfield = spec.add_hfield(
+        name=hfield_name,
+        size=[
+            cfg.size[0] / 2,
+            cfg.size[1] / 2,
+            elevation_range,
+            base_thickness,
+        ],
+        nrow=nrow,
+        ncol=ncol,
+        userdata=normalized_height.astype(np.float32).reshape(-1).tolist(),
+    )
+
+    # Create height-based coloring for visualization
+    unique_id = uuid.uuid4().hex
+    texture_size = 128
+    texture_name = f"hf_texture_{unique_id}"
+    texture = spec.add_texture(
+        name=texture_name,
+        type=mujoco.mjtTexture.mjTEXTURE_2D,
+        width=texture_size,
+        height=texture_size,
+    )
+
+    texture_elevation = ndimage.zoom(
+        normalized_height,
+        (texture_size / normalized_height.shape[0], texture_size / normalized_height.shape[1]),
+        order=1,
+    )
+    texture_elevation = np.asarray(texture_elevation)
+
+    # Height-based coloring: blue-green-yellow gradient
+    hue = 0.5 - texture_elevation * 0.45
+    saturation = 0.6 - texture_elevation * 0.2
+    value = 0.4 + texture_elevation * 0.3
+
+    c = value * saturation
+    x_color = c * (1 - np.abs((hue * 6) % 2 - 1))
+    m = value - c
+
+    hue_sector = (hue * 6).astype(int) % 6
+
+    r = np.zeros_like(hue)
+    g = np.zeros_like(hue)
+    b = np.zeros_like(hue)
+
+    mask = hue_sector == 0
+    r[mask] = c[mask]
+    g[mask] = x_color[mask]
+
+    mask = hue_sector == 1
+    r[mask] = x_color[mask]
+    g[mask] = c[mask]
+
+    mask = hue_sector == 2
+    g[mask] = c[mask]
+    b[mask] = x_color[mask]
+
+    mask = hue_sector == 3
+    g[mask] = x_color[mask]
+    b[mask] = c[mask]
+
+    mask = hue_sector == 4
+    r[mask] = x_color[mask]
+    b[mask] = c[mask]
+
+    mask = hue_sector == 5
+    r[mask] = c[mask]
+    b[mask] = x_color[mask]
+
+    r += m
+    g += m
+    b += m
+
+    rgb_data = np.stack([r, g, b], axis=-1)
+    rgb_data = (rgb_data * 255).astype(np.uint8)
+    rgb_data = np.flipud(rgb_data)
+    texture.data = rgb_data.tobytes()
+
+    material_name = f"hf_material_{unique_id}"
+    material = spec.add_material(name=material_name)
+    material.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = texture_name
+
+    # hfield geom: visible (group 0/2) and collision enabled
+    # Position: center of terrain, with z at bottom of heightfield
+    hfield_geom = spec.body("terrain").add_geom(
+        type=mujoco.mjtGeom.mjGEOM_HFIELD,
+        hfieldname=hfield_name,
+        pos=(cfg.size[0] / 2, cfg.size[1] / 2, elevation_min - base_thickness),
+        material=material_name,
+    )
+    # Group 0 for default visibility, collision enabled by default
+    hfield_geom.group = 0
+
+    return TerrainGeometry(geom=hfield_geom, hfield=hfield), elevation_min, elevation_max, detected_floor_z
+
+
+def stl_heightfield_terrain(
+    cfg: mesh_terrains_cfg.STLHeightfieldTerrainCfg,
+    difficulty: float,
+    spec: mujoco.MjSpec,
+    rng: np.random.Generator,
+) -> TerrainOutput:
+    """Generate a terrain from STL using heightfield for both visualization and collision.
+
+    This function loads an STL file and converts it to a MuJoCo heightfield,
+    suitable for 3D-scanned concave terrains (e.g., floor with thin walls).
+
+    Args:
+        cfg: Configuration for STL heightfield terrain.
+        difficulty: Difficulty level (0-1) used to select terrain from metadata.
+        spec: MuJoCo spec to add terrain geometry to.
+        rng: Random number generator (unused).
+
+    Returns:
+        TerrainOutput with spawn origin and heightfield geometry.
+    """
+    del rng
+
+    # Load the YAML file containing terrain and motion data
+    with open(cfg.metadata_yaml) as file:
+        data = yaml.safe_load(file)
+
+    terrains = data["terrains"]
+
+    terrain_idx = int(np.clip(difficulty * len(terrains), 0, len(terrains) - 1))
+    selected_terrain = terrains[terrain_idx]
+
+    terrain_file = selected_terrain["terrain_file"]
+    terrain_abspath = os.path.join(cfg.path, terrain_file)
+    terrain_size = (float(cfg.size[0]), float(cfg.size[1]))
+
+    # Load STL mesh (without border_height alignment - we'll handle floor alignment ourselves)
+    terrain_mesh = trimesh.load(terrain_abspath, force="mesh")
+
+    # Crop terrain mesh by cfg.size
+    terrain_mesh = crop_terrain_mesh_aabb(
+        terrain_mesh,
+        x_max=terrain_size[0] / 2,
+        x_min=-terrain_size[0] / 2,
+        y_max=terrain_size[1] / 2,
+        y_min=-terrain_size[1] / 2,
+    )
+    terrain_mesh.remove_unreferenced_vertices()
+    trimesh.repair.fix_winding(terrain_mesh)
+    trimesh.repair.fix_normals(terrain_mesh, multibody=True)
+
+    # Move mesh to terrain generator convention: (size[0]/2, size[1]/2, 0)
+    # Note: We do NOT apply z-offset here; floor alignment happens in heightfield generation
+    move_terrain_transform = np.eye(4)
+    move_terrain_transform[:2, 3] = np.asarray(terrain_size, dtype=np.float64) / 2.0
+    terrain_mesh.apply_transform(move_terrain_transform)
+
+    # Create heightfield for both visualization and collision
+    hfield_geom, elevation_min, elevation_max, floor_z = _create_visual_hfield_from_mesh(
+        cfg, spec, terrain_mesh, terrain_idx, terrain_abspath
+    )
+
+    # Origin at terrain center, floor at z=0 (after floor alignment in hfield generation)
+    # The floor has been shifted to z=0 in _create_visual_hfield_from_mesh
+    origin = np.array([cfg.size[0] / 2, cfg.size[1] / 2, 0.0])
+
+    print(
+        f"[STLHeightfieldTerrain] terrain_idx={terrain_idx}, file={terrain_file}, "
+        f"floor_z_detected={floor_z:.3f}, elevation_range=[{elevation_min:.3f}, {elevation_max:.3f}]"
+    )
+
+    return TerrainOutput(origin=origin, geometries=[hfield_geom])
 
 
 def motion_matched_terrain(

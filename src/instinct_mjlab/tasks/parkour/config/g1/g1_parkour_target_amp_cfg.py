@@ -216,6 +216,13 @@ def _apply_play_overrides(cfg: ManagerBasedRlEnvCfg) -> None:
   )
 
 
+def _set_world_free_viewer(cfg: ManagerBasedRlEnvCfg) -> None:
+  """Ensure viewer uses world-origin free camera instead of robot tracking."""
+  cfg.viewer.origin_type = ViewerConfig.OriginType.WORLD
+  cfg.viewer.entity_name = None
+  cfg.viewer.body_name = None
+
+
 # ---------------------------------------------------------------------------
 # G1-specific actuator setup (from original env_cfgs.py)
 # ---------------------------------------------------------------------------
@@ -271,6 +278,7 @@ def instinct_g1_parkour_amp_env_cfg(
   """
   # Scene settings (start from tracking base with G1 robot)
   cfg = unitree_g1_flat_tracking_env_cfg(play=play, has_state_estimation=True)
+  _set_world_free_viewer(cfg)
   # Match InstinctLab parkour init height (G1_CFG.init_state.pos = (0, 0, 0.9)).
   cfg.scene.entities["robot"].init_state.pos = (0.0, 0.0, 0.9)
 
@@ -335,6 +343,7 @@ def instinct_g1_parkour_amp_final_cfg(
   # Apply play-mode viewer overrides
   if play:
     _apply_play_overrides(cfg)
+    _set_world_free_viewer(cfg)
 
   return cfg
 

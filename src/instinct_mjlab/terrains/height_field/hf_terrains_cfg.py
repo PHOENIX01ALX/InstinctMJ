@@ -1,17 +1,67 @@
 from dataclasses import MISSING, dataclass, field
 from typing import List
 
-from mjlab.terrains.height_field import (
-    HfDiscreteObstaclesTerrainCfg,
-    HfInvertedPyramidSlopedTerrainCfg,
-    HfInvertedPyramidStairsTerrainCfg,
-    HfPyramidSlopedTerrainCfg,
-    HfPyramidStairsTerrainCfg,
-    HfSteppingStonesTerrainCfg,
-    HfTerrainBaseCfg,
-    HfWaveTerrainCfg,
-)
-from mjlab.terrains.terrain_generator import FlatPatchSamplingCfg
+from mjlab.terrains.terrain_generator import FlatPatchSamplingCfg, SubTerrainCfg
+
+
+@dataclass(kw_only=True)
+class HfTerrainBaseCfg(SubTerrainCfg):
+    function: object | None = None
+    border_width: float = 0.0
+    horizontal_scale: float = 0.1
+    vertical_scale: float = 0.005
+    slope_threshold: float | None = None
+    flat_patch_sampling: dict[str, FlatPatchSamplingCfg] | None = None
+    base_thickness_ratio: float = 1.0
+
+
+@dataclass(kw_only=True)
+class HfPyramidSlopedTerrainCfg(HfTerrainBaseCfg):
+    slope_range: tuple[float, float] = MISSING
+    platform_width: float = 1.0
+    inverted: bool = False
+
+
+@dataclass(kw_only=True)
+class HfInvertedPyramidSlopedTerrainCfg(HfPyramidSlopedTerrainCfg):
+    inverted: bool = True
+
+
+@dataclass(kw_only=True)
+class HfPyramidStairsTerrainCfg(HfTerrainBaseCfg):
+    step_height_range: tuple[float, float] = MISSING
+    step_width: float = MISSING
+    platform_width: float = 1.0
+    inverted: bool = False
+
+
+@dataclass(kw_only=True)
+class HfInvertedPyramidStairsTerrainCfg(HfPyramidStairsTerrainCfg):
+    inverted: bool = True
+
+
+@dataclass(kw_only=True)
+class HfDiscreteObstaclesTerrainCfg(HfTerrainBaseCfg):
+    obstacle_height_mode: str = "choice"
+    obstacle_width_range: tuple[float, float] = MISSING
+    obstacle_height_range: tuple[float, float] = MISSING
+    num_obstacles: int = MISSING
+    platform_width: float = 1.0
+
+
+@dataclass(kw_only=True)
+class HfWaveTerrainCfg(HfTerrainBaseCfg):
+    amplitude_range: tuple[float, float] = MISSING
+    num_waves: int = 1
+
+
+@dataclass(kw_only=True)
+class HfSteppingStonesTerrainCfg(HfTerrainBaseCfg):
+    stone_height_max: float = MISSING
+    stone_width_range: tuple[float, float] = MISSING
+    stone_distance_range: tuple[float, float] = MISSING
+    holes_depth: float = -10.0
+    platform_width: float = 1.0
 
 from . import hf_terrains
 

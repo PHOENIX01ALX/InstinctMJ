@@ -1,6 +1,10 @@
 from dataclasses import field, dataclass, MISSING
+import hashlib
 import math
 import os
+from pathlib import Path
+import tempfile
+from typing import Any
 
 import mujoco
 import mjlab.envs.mdp as mdp
@@ -36,7 +40,7 @@ from instinct_mjlab.sensors.noisy_camera import NoisyGroupedRayCasterCameraCfg
 from instinct_mjlab.tasks.shadowing import mdp as shadowing_mdp
 from instinct_mjlab.terrains.terrain_generator_cfg import FiledTerrainGeneratorCfg
 from instinct_mjlab.terrains.terrain_importer_cfg import TerrainImporterCfg
-from instinct_mjlab.terrains.trimesh import MotionMatchedTerrainCfg
+from instinct_mjlab.terrains.trimesh import STLHeightfieldTerrainCfg
 from instinct_mjlab.utils.noise import (
     CropAndResizeCfg,
     DepthArtifactNoiseCfg,
@@ -47,12 +51,126 @@ from instinct_mjlab.utils.noise import (
     RangeBasedGaussianNoiseCfg,
     StereoTooCloseNoiseCfg,
 )
+import yaml
 
 # PROPRIO_HISTORY_LENGTH = 0
 PROPRIO_HISTORY_LENGTH = 8
 _UNDESIRED_CONTACT_BODY_REGEX = (
     r"^(?!left_ankle_roll_link$)(?!right_ankle_roll_link$)(?!left_wrist_yaw_link$)(?!right_wrist_yaw_link$).+$"
 )
+
+_PERCEPTIVE_STL_TERRAIN_ENV = "INSTINCT_PERCEPTIVE_TERRAIN_STL"
+_PERCEPTIVE_STL_METADATA_ENV = "INSTINCT_PERCEPTIVE_TERRAIN_METADATA_YAML"
+_PERCEPTIVE_STL_ROOT_ENV = "INSTINCT_PERCEPTIVE_TERRAIN_ROOT"
+_PERCEPTIVE_HFIELD_FLOOR_Z_OFFSET_ENV = "INSTINCT_PERCEPTIVE_HFIELD_FLOOR_Z_OFFSET"
+
+
+def _expanded_abs_path(path: str) -> str:
+    return str(Path(path).expanduser().resolve())
+
+
+def _read_nonempty_env_path(name: str) -> str | None:
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    value = value.strip()
+    if len(value) == 0:
+        return None
+    return _expanded_abs_path(value)
+
+
+def _single_stl_metadata_cache_path(stl_abspath: str) -> str:
+    stl_stem = Path(stl_abspath).stem
+    stl_hash = hashlib.sha1(stl_abspath.encode("utf-8")).hexdigest()[:16]
+    cache_dir = Path(tempfile.gettempdir()) / "instinct_mjlab_perceptive_stl_hfield"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return str(cache_dir / f"{stl_stem}_{stl_hash}.yaml")
+
+
+def _build_single_stl_metadata(stl_abspath: str) -> str:
+    metadata_yaml = _single_stl_metadata_cache_path(stl_abspath)
+    metadata_payload = {
+        "terrains": [
+            {
+                "terrain_id": 0,
+                "terrain_file": Path(stl_abspath).name,
+            },
+        ],
+    }
+    metadata_text = yaml.safe_dump(metadata_payload, sort_keys=False, allow_unicode=False)
+
+    metadata_path = Path(metadata_yaml)
+    if metadata_path.exists():
+        existing_text = metadata_path.read_text(encoding="utf-8")
+        if existing_text == metadata_text:
+            return metadata_yaml
+    metadata_path.write_text(metadata_text, encoding="utf-8")
+    return metadata_yaml
+
+
+def resolve_perceptive_stl_heightfield_source(
+    default_path: str,
+    default_metadata_yaml: str,
+) -> tuple[str, str]:
+    """Resolve STL heightfield source from env overrides.
+
+    Priority:
+    1) INSTINCT_PERCEPTIVE_TERRAIN_STL: single STL path (auto-generates metadata yaml)
+    2) INSTINCT_PERCEPTIVE_TERRAIN_METADATA_YAML (+ optional INSTINCT_PERCEPTIVE_TERRAIN_ROOT)
+    3) default path/metadata from motion dataset
+    """
+    stl_override = _read_nonempty_env_path(_PERCEPTIVE_STL_TERRAIN_ENV)
+    if stl_override is not None:
+        if not os.path.isfile(stl_override):
+            raise FileNotFoundError(
+                f"{_PERCEPTIVE_STL_TERRAIN_ENV} file not found: {stl_override}"
+            )
+        metadata_yaml = _build_single_stl_metadata(stl_override)
+        terrain_path = str(Path(stl_override).parent)
+        return terrain_path, metadata_yaml
+
+    metadata_override = _read_nonempty_env_path(_PERCEPTIVE_STL_METADATA_ENV)
+    if metadata_override is not None:
+        if not os.path.isfile(metadata_override):
+            raise FileNotFoundError(
+                f"{_PERCEPTIVE_STL_METADATA_ENV} file not found: {metadata_override}"
+            )
+        terrain_root_override = _read_nonempty_env_path(_PERCEPTIVE_STL_ROOT_ENV)
+        terrain_path = (
+            terrain_root_override
+            if terrain_root_override is not None
+            else str(Path(metadata_override).parent)
+        )
+        return terrain_path, metadata_override
+
+    return _expanded_abs_path(default_path), _expanded_abs_path(default_metadata_yaml)
+
+
+def resolve_perceptive_hfield_floor_z_offset(default_offset: float = 0.0) -> float:
+    """Read optional floor z offset for STL-heightfield alignment."""
+    raw_value = os.environ.get(_PERCEPTIVE_HFIELD_FLOOR_Z_OFFSET_ENV)
+    if raw_value is None:
+        return float(default_offset)
+    value = raw_value.strip()
+    if len(value) == 0:
+        return float(default_offset)
+    return float(value)
+
+
+def get_stl_heightfield_subterrain_cfg(sub_terrains: dict[str, Any]) -> STLHeightfieldTerrainCfg:
+    """Return the required STL heightfield subterrain config."""
+    terrain_key = "stl_heightfield"
+    if terrain_key not in sub_terrains:
+        available = ", ".join(sorted(sub_terrains.keys()))
+        raise KeyError(
+            f"Perceptive terrain requires '{terrain_key}' sub terrain. Available: [{available}]"
+        )
+    terrain_cfg = sub_terrains[terrain_key]
+    if not isinstance(terrain_cfg, STLHeightfieldTerrainCfg):
+        raise TypeError(
+            f"Expected '{terrain_key}' to be STLHeightfieldTerrainCfg, got {type(terrain_cfg).__name__}"
+        )
+    return terrain_cfg
 
 
 def _edit_perceptive_scene_spec(spec: mujoco.MjSpec) -> None:
@@ -155,6 +273,10 @@ class PerceptiveShadowingSceneCfg(InteractiveSceneCfg):
     motion_reference: MotionReferenceManagerCfg = None  # Set by concrete env cfg subclass
 
     # terrain
+    # Set use_stl_heightfield=True to use STLHeightfieldTerrainCfg (heightfield for both visual+collision)
+    # Set use_stl_heightfield=False to use MotionMatchedTerrainCfg (mesh visual + hfield collision)
+    use_stl_heightfield: bool = True
+
     terrain: object = field(default_factory=lambda: TerrainImporterCfg(
         prim_path="/World/ground",
         # terrain_type="plane",
@@ -168,18 +290,18 @@ class PerceptiveShadowingSceneCfg(InteractiveSceneCfg):
             num_cols=7,
             add_lights=True,
             sub_terrains={
-                "motion_matched": MotionMatchedTerrainCfg(
+                # STLHeightfieldTerrainCfg: uses heightfield for BOTH visualization and collision.
+                # Suitable for 3D-scanned concave terrains (floor with thin walls).
+                # All terrain floors are aligned to the same plane via hfield_floor_z_offset.
+                "stl_heightfield": STLHeightfieldTerrainCfg(
                     proportion=1.0,
                     path="PLACEHOLDER",  # Will be overridden in concrete env cfg __post_init__
                     metadata_yaml="PLACEHOLDER",  # Will be overridden in concrete env cfg __post_init__
-                    # Use heightfield collision: ray-cast from above at 2 cm resolution.
-                    # Avoids CoACD convex decomposition overhead and correctly handles
-                    # concave / 3D-scanned STL terrains without spurious interior contacts.
-                    # NOTE: MuJoCo hfield collision is limited to 50 contacts per pair;
-                    # resolution must be coarse enough that a robot foot covers < 50 cells.
-                    # At 2 cm, a 10x5 cm foot covers ~12 cells — well within the limit.
-                    collision_hfield=True,
-                    collision_hfield_resolution=0.02,
+                    hfield_resolution=0.02,  # 2 cm resolution
+                    hfield_base_thickness=0.1,  # Fixed 10cm base thickness
+                    hfield_use_disk_cache=True,
+                    hfield_sink_miss_cells=True,
+                    hfield_floor_z_offset=0.0,  # Adjust if floors need alignment
                 ),
             },
         ),

@@ -4,8 +4,8 @@ from dataclasses import MISSING, dataclass, field
 import math
 from typing import TYPE_CHECKING, Literal
 
-from mjlab.markers import VisualizationMarkersCfg
-from mjlab.sensors import patterns
+from instinct_mjlab.visualization.markers import VisualizationMarkersCfg
+from mjlab.sensor import GridPatternCfg
 
 from .edge_cylinder import GreedyconcatEdgeCylinder, PluckerEdgeCylinder, RansacEdgeCylinder, RayEdgeCylinder
 from .virtual_obstacle_base import VirtualObstacleCfg
@@ -127,8 +127,8 @@ class RayEdgeCylinderCfg(VirtualObstacleCfg):
     cluster_eps: float = 0.08
     """The maximum distance between points in a cluster."""
 
-    ray_pattern: patterns.GridPatternCfg = field(
-        default_factory=lambda: patterns.GridPatternCfg(
+    ray_pattern: GridPatternCfg = field(
+        default_factory=lambda: GridPatternCfg(
             resolution=0.01,
             size=[6, 6],
             direction=(0.0, 0.0, -1.0),

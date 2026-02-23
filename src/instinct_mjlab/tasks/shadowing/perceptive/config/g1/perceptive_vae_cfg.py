@@ -116,6 +116,28 @@ def _make_motion_reference_cfg(*, debug_vis: bool = False) -> MotionReferenceMan
     return cfg
 
 
+def _apply_stl_heightfield_terrain_source(
+    scene: perceptual_cfg.PerceptiveShadowingSceneCfg,
+    *,
+    default_path: str,
+    default_metadata_yaml: str,
+) -> None:
+    """Bind perceptive terrain generator to STL-heightfield source."""
+    terrain_generator = scene.terrain.terrain_generator
+    terrain_cfg = perceptual_cfg.get_stl_heightfield_subterrain_cfg(
+        terrain_generator.sub_terrains
+    )
+    terrain_path, terrain_metadata_yaml = perceptual_cfg.resolve_perceptive_stl_heightfield_source(
+        default_path=default_path,
+        default_metadata_yaml=default_metadata_yaml,
+    )
+    terrain_cfg.path = terrain_path
+    terrain_cfg.metadata_yaml = terrain_metadata_yaml
+    terrain_cfg.hfield_floor_z_offset = perceptual_cfg.resolve_perceptive_hfield_floor_z_offset(
+        default_offset=float(terrain_cfg.hfield_floor_z_offset)
+    )
+
+
 def make_vae_observations() -> dict[str, ObsGroupCfg]:
     """Observation specifications for the perceptive VAE MDP."""
 
@@ -265,8 +287,11 @@ class G1PerceptiveVaeEnvCfg(perceptual_cfg.PerceptiveShadowingEnvCfg):
         self.actions["joint_pos"].scale = beyondmimic_action_scale
 
         motion_buffer = list(self.scene.motion_reference.motion_buffers.values())[0]
-        self.scene.terrain.terrain_generator.sub_terrains["motion_matched"].path = motion_buffer.path
-        self.scene.terrain.terrain_generator.sub_terrains["motion_matched"].metadata_yaml = motion_buffer.metadata_yaml
+        _apply_stl_heightfield_terrain_source(
+            self.scene,
+            default_path=motion_buffer.path,
+            default_metadata_yaml=motion_buffer.metadata_yaml,
+        )
 
         self.run_name = "g1PerceptiveVae" + "".join(
             [

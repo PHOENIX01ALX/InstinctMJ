@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from typing import Literal
 
-from mjlab.markers import VisualizationMarkersCfg
+from instinct_mjlab.visualization.markers import VisualizationMarkersCfg
 from mjlab.sensor import PinholeCameraPatternCfg
 
 from .grouped_ray_caster_camera import GroupedRayCasterCamera

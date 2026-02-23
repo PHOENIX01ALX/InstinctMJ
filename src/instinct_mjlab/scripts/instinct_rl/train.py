@@ -6,8 +6,8 @@ Migrated: replaces Isaac Sim / Isaac Lab runtime with mjlab + tyro CLI.
 
 from __future__ import annotations
 
-import ast
 import os
+import re
 import sys
 from dataclasses import asdict, dataclass, fields, is_dataclass, replace
 from datetime import datetime
@@ -103,10 +103,23 @@ def _parse_cli_literal(raw: str) -> Any:
     return True
   if lower == "false":
     return False
-  try:
-    return ast.literal_eval(raw)
-  except Exception:
-    return raw
+  if re.fullmatch(r"[+-]?\d+", raw):
+    return int(raw)
+  if re.fullmatch(r"[+-]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?", raw):
+    return float(raw)
+  if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in {'"', "'"}:
+    return raw[1:-1]
+  if raw.startswith("[") and raw.endswith("]"):
+    inner = raw[1:-1].strip()
+    if not inner:
+      return []
+    return [_parse_cli_literal(item.strip()) for item in inner.split(",") if item.strip()]
+  if raw.startswith("(") and raw.endswith(")"):
+    inner = raw[1:-1].strip()
+    if not inner:
+      return ()
+    return tuple(_parse_cli_literal(item.strip()) for item in inner.split(",") if item.strip())
+  return raw
 
 
 def _iter_dot_overrides(tokens: list[str]) -> list[tuple[str, Any]]:
@@ -373,15 +386,13 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
 
     runner.rollout_step = _rollout_step_with_view
 
-  try:
-    runner.learn(
-      num_learning_iterations=cfg.agent.max_iterations,
-      init_at_random_ep_len=True,
-    )
-  finally:
-    if train_viewer is not None:
-      train_viewer.close()
-    vec_env.close()
+  runner.learn(
+    num_learning_iterations=cfg.agent.max_iterations,
+    init_at_random_ep_len=True,
+  )
+  if train_viewer is not None:
+    train_viewer.close()
+  vec_env.close()
 
 
 def launch_training(task_id: str, args: TrainConfig | None = None) -> None:

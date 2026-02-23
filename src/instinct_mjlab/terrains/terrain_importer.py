@@ -3,11 +3,29 @@ from __future__ import annotations
 import numpy as np
 import torch
 import trimesh
+import time
 from typing import TYPE_CHECKING
 
-from mjlab.terrains import SubTerrainBaseCfg, TerrainGenerator
+from mjlab.terrains import SubTerrainCfg as SubTerrainBaseCfg
+from mjlab.terrains import TerrainGenerator
 from mjlab.terrains import TerrainImporter as TerrainImporterBase
-from mjlab.utils.timer import Timer
+
+
+class Timer:
+    """Simple timer context manager."""
+
+    def __init__(self, message: str):
+        self.message = message
+        self._start = 0.0
+
+    def __enter__(self):
+        self._start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        elapsed = time.perf_counter() - self._start
+        print(f"{self.message}: {elapsed:.4f}s")
+        return False
 
 if TYPE_CHECKING:
     from .terrain_importer_cfg import TerrainImporterCfg
@@ -26,7 +44,7 @@ class TerrainImporter(TerrainImporterBase):
             virtual_obstacle = virtual_obstacle_cfg.class_type(virtual_obstacle_cfg)
             self._virtual_obstacles[name] = virtual_obstacle
 
-        if cfg.terrain_type == "hacked_generator":
+        if cfg.terrain_type in ("hacked_generator", "generator"):
             self._hacked_terrain_type = "hacked_generator"
             cfg.terrain_type = "plane"
         super().__init__(cfg, device)

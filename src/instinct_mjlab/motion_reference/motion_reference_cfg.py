@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from collections.abc import Sequence
 from typing import Literal
 
-from mjlab.markers import VisualizationMarkersCfg
-from mjlab.sensors import SensorBaseCfg
+from instinct_mjlab.visualization.markers import VisualizationMarkersCfg
+from mjlab.sensor import SensorCfg
 
 from .motion_buffer import MotionBuffer, MotionReferenceData
 from .motion_reference_manager import MotionReferenceManager
@@ -22,7 +22,7 @@ class MotionBufferCfg:
 
 
 @dataclass(kw_only=True)
-class MotionReferenceManagerCfg(SensorBaseCfg):
+class MotionReferenceManagerCfg(SensorCfg):
     """Configuration for the motion reference manager."""
 
     class_type: type = MotionReferenceManager

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import mjlab.sim as sim_utils
 from mjlab.managers import CommandTerm, SceneEntityCfg
-from mjlab.markers.visualization_markers import VisualizationMarkers
+from instinct_mjlab.visualization.markers import VisualizationMarkers
 from mjlab.utils.lab_api import math as math_utils
 
 import instinct_mjlab.utils.math as instinct_math_utils

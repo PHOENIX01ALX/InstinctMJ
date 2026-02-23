@@ -25,15 +25,11 @@ def rename_file_contents(root_dir_path: str, old_name: str, new_name: str, exclu
         for file_name in files:
             if file_name == "rename_template.py":
                 continue
-            try:
-                with open(os.path.join(dirpath, file_name)) as file:
-                    file_contents = file.read()
-                file_contents = file_contents.replace(old_name, new_name)
-                with open(os.path.join(dirpath, file_name), "w") as file:
-                    file.write(file_contents)
-            except Exception as e:
-                print(f"Ignoring {file_name}: {e}")
-                continue
+            with open(os.path.join(dirpath, file_name)) as file:
+                file_contents = file.read()
+            file_contents = file_contents.replace(old_name, new_name)
+            with open(os.path.join(dirpath, file_name), "w") as file:
+                file.write(file_contents)
 
 
 if __name__ == "__main__":

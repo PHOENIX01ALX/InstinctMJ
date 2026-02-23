@@ -4,8 +4,6 @@ import torch
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-import omni.log
-
 from mjlab.envs.mdp import JointPositionAction
 
 if TYPE_CHECKING:

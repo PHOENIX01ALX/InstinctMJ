@@ -14,9 +14,8 @@ import cv2
 from sklearn.cluster import DBSCAN
 
 from mjlab.utils.lab_api import math as math_utils
-from mjlab.markers import VisualizationMarkers
-from mjlab.sensors import patterns
-from mjlab.utils.warp import convert_to_warp_mesh, raycast_mesh
+from instinct_mjlab.visualization.markers import VisualizationMarkers
+from instinct_mjlab.utils.warp import convert_to_warp_mesh, raycast_mesh
 
 from instinct_mjlab.utils.warp.cylinder import CylinderSpatialGrid
 

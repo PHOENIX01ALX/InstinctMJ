@@ -1,6 +1,8 @@
 # Training/runtime logs
 logs/
-
+.venv/
+.vscode/
+.pytest_cache/
 # Python cache files
 __pycache__/
 *.pyc

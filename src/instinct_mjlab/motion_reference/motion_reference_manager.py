@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING
 
 from mjlab.utils.lab_api import math as math_utils
 import mjlab.utils.lab_api.string as string_utils
-from mjlab.markers import VisualizationMarkers
+from instinct_mjlab.visualization.markers import VisualizationMarkers
 from mjlab.scene import Scene
-from mjlab.sensors import SensorBase
+from mjlab.sensor import Sensor
 from instinct_mjlab.utils.timestamped_buffer import TimestampedBuffer
 
 from .motion_reference_data import MotionReferenceData, MotionReferenceState
@@ -27,7 +27,7 @@ import torch.distributed as dist
 import pytorch_kinematics as pk
 
 
-class MotionReferenceManager(SensorBase):
+class MotionReferenceManager(Sensor):
     """The manager to handle all motion references. There are multiple types of motion references
     should be supported:
         1. PlaneDataset: as from pre-collected dataset. The robot's base pose trajectory is in the

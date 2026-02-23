@@ -272,16 +272,7 @@ def _build_parkour_onnx_policy(
   model_dir: Path,
 ):
   from instinct_rl.utils.utils import get_subobs_by_components, get_subobs_size
-
-  try:
-    from instinct_mjlab.tasks.parkour.scripts.onnxer import load_parkour_onnx_model
-  except ModuleNotFoundError as err:
-    if err.name == "onnxruntime":
-      raise ModuleNotFoundError(
-        "ONNX inference requires `onnxruntime` or `onnxruntime-gpu`. "
-        "Install one of them and retry."
-      ) from err
-    raise
+  from instinct_mjlab.tasks.parkour.scripts.onnxer import load_parkour_onnx_model
 
   encoder_path = model_dir / "0-depth_encoder.onnx"
   actor_path = model_dir / "actor.onnx"
@@ -294,13 +285,7 @@ def _build_parkour_onnx_policy(
   if "depth_image" not in obs_segments:
     raise ValueError("Parkour ONNX inference requires `depth_image` in policy observations.")
 
-  try:
-    depth_components = agent_cfg.policy.encoder_configs.depth_encoder.component_names
-  except AttributeError as err:
-    raise ValueError(
-      "Unable to read depth encoder component names from agent config. "
-      "This ONNX path currently supports parkour policy configs."
-    ) from err
+  depth_components = agent_cfg.policy.encoder_configs.depth_encoder.component_names
 
   proprio_components = [
     "base_lin_vel",
@@ -336,12 +321,7 @@ def _export_policy_to_onnx(
 ) -> None:
   export_dir.mkdir(parents=True, exist_ok=True)
   observations, _ = vec_env.get_observations()
-  try:
-    runner.export_as_onnx(obs=observations, export_model_dir=str(export_dir))
-  except ModuleNotFoundError as err:
-    raise ModuleNotFoundError(
-      "ONNX export failed: missing dependency. Install `onnx` and retry."
-    ) from err
+  runner.export_as_onnx(obs=observations, export_model_dir=str(export_dir))
 
   metadata = {
     "task_id": task_id,

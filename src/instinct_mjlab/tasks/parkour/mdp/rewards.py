@@ -6,12 +6,28 @@ from typing import TYPE_CHECKING
 from mjlab.managers import SceneEntityCfg
 from mjlab.sensor import ContactSensor, RayCastSensor
 from mjlab.utils.lab_api.math import quat_apply_inverse
+from mjlab.asset_zoo.robots.unitree_g1 import g1_constants as g1_consts
 
 if TYPE_CHECKING:
   from mjlab.entity import Entity
   from mjlab.envs import ManagerBasedRlEnv
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
+
+_G1_JOINT_VEL_LIMIT_BY_EFFORT_LIMIT = {
+  float(g1_consts.ACTUATOR_7520_14.effort_limit): float(g1_consts.ACTUATOR_7520_14.velocity_limit),
+  float(g1_consts.ACTUATOR_7520_22.effort_limit): float(g1_consts.ACTUATOR_7520_22.velocity_limit),
+  float(g1_consts.ACTUATOR_5020.effort_limit): float(g1_consts.ACTUATOR_5020.velocity_limit),
+  float(g1_consts.ACTUATOR_5020.effort_limit * 2.0): float(g1_consts.ACTUATOR_5020.velocity_limit),
+  float(g1_consts.ACTUATOR_4010.effort_limit): float(g1_consts.ACTUATOR_4010.velocity_limit),
+}
+
+
+def _g1_velocity_limit_from_effort_limit(effort_limit: float) -> float:
+  for effort_limit_key, velocity_limit in _G1_JOINT_VEL_LIMIT_BY_EFFORT_LIMIT.items():
+    if abs(effort_limit - effort_limit_key) < 1e-6:
+      return velocity_limit
+  raise RuntimeError(f"Unsupported G1 actuator effort_limit={effort_limit} for joint_vel_limits.")
 
 
 def track_lin_vel_xy_exp(
@@ -341,14 +357,15 @@ def motors_power_square(
   # mjlab uses actuator_force instead of applied_torque
   power_j = asset.data.actuator_force * asset.data.joint_vel
   if normalize_by_stiffness:
-    # mjlab: asset.actuators is a list, not a dict
+    # mjlab: stiffness is configured on each BuiltinPositionActuator cfg.
     for actuator in asset.actuators:
-      # Handle DelayedActuator wrapper - access base actuator properties
-      base_actuator = getattr(actuator, 'base_actuator', actuator)
+      base_actuator = actuator.base_actuator
       target_ids = base_actuator.target_ids
-      stiffness = getattr(base_actuator, 'stiffness', None)
-      if stiffness is not None:
-        power_j[:, target_ids] /= stiffness
+      stiffness = base_actuator.cfg.stiffness
+      if torch.is_tensor(stiffness):
+        power_j[:, target_ids] /= stiffness.to(device=power_j.device, dtype=power_j.dtype)
+      else:
+        power_j[:, target_ids] /= float(stiffness)
 
   power_j = power_j[:, asset_cfg.joint_ids]
   power = torch.sum(torch.square(power_j), dim=-1)
@@ -361,33 +378,39 @@ def joint_vel_limits(
   env: ManagerBasedRlEnv,
   soft_ratio: float,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-  max_vel: float = 10.0,
 ) -> torch.Tensor:
   """Penalize joint velocities if they cross soft limits.
 
   Mirrors the original Isaac Lab ``joint_vel_limits``:
   ``abs(joint_vel) - soft_joint_vel_limits * soft_ratio`` clipped to [0, 1].
-  In mjlab, per-joint velocity limits are collected from actuator configs.
+  In mjlab parkour G1, per-joint velocity limits are reconstructed from
+  actuator effort limits using the same Unitree motor specs.
   """
   asset: Entity = env.scene[asset_cfg.name]
 
-  # mjlab adaptation: build joint-wise velocity limits from actuators.
-  # Fallback to max_vel when an actuator does not expose velocity limits.
-  joint_vel_limits = torch.full_like(asset.data.joint_vel, fill_value=max_vel)
+  joint_vel_limits = torch.zeros_like(asset.data.joint_vel)
+  selected_joint_ids = (
+    list(range(asset.num_joints))
+    if isinstance(asset_cfg.joint_ids, slice)
+    else list(asset_cfg.joint_ids)
+  )
+  is_joint_covered = torch.zeros(asset.num_joints, dtype=torch.bool, device=env.device)
+
   for actuator in asset.actuators:
-    base_actuator = getattr(actuator, "base_actuator", actuator)
+    base_actuator = actuator.base_actuator
     target_ids = base_actuator.target_ids
+    effort_limit = float(base_actuator.cfg.effort_limit)
+    velocity_limit = _g1_velocity_limit_from_effort_limit(effort_limit)
+    joint_vel_limits[:, target_ids] = velocity_limit
+    is_joint_covered[target_ids] = True
 
-    velocity_limit = getattr(base_actuator, "velocity_limit_motor", None)
-    if velocity_limit is None:
-      velocity_limit = getattr(getattr(base_actuator, "cfg", None), "velocity_limit", None)
-    if velocity_limit is None:
-      continue
-
-    if torch.is_tensor(velocity_limit):
-      joint_vel_limits[:, target_ids] = velocity_limit
-    else:
-      joint_vel_limits[:, target_ids] = float(velocity_limit)
+  missing_joint_ids = [j for j in selected_joint_ids if not bool(is_joint_covered[j])]
+  if len(missing_joint_ids) > 0:
+    missing_joint_names = [asset.joint_names[j] for j in missing_joint_ids]
+    raise RuntimeError(
+      "joint_vel_limits missing velocity limits for joints: "
+      + ", ".join(missing_joint_names)
+    )
 
   out_of_limits = (
     torch.abs(asset.data.joint_vel[:, asset_cfg.joint_ids])
@@ -403,32 +426,39 @@ def applied_torque_limits_by_ratio(
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   limit_ratio: float = 0.8,
 ) -> torch.Tensor:
-  """Penalize actuator forces exceeding a ratio of their limits.
-  
-  Note: mjlab stores effort limits in actuator.force_limit, not in EntityData.
-  We collect limits from all actuators and construct the full limit tensor.
-  """
+  """Penalize when the applied torque exceeds a ratio of torque limits."""
   asset: Entity = env.scene[asset_cfg.name]
-  
-  # Collect effort limits from actuators
-  num_envs = asset.data.actuator_force.shape[0]
-  num_joints = asset.data.actuator_force.shape[1]
-  joint_effort_limits = torch.zeros((num_envs, num_joints), device=env.device)
-  
+
+  if isinstance(asset_cfg.joint_ids, slice):
+    selected_joint_ids = list(range(asset.num_joints))
+  else:
+    selected_joint_ids = list(asset_cfg.joint_ids)
+  selected_joint_names = {asset.joint_names[j] for j in selected_joint_ids}
+
+  actuator_forcerange = env.sim.model.actuator_forcerange
+  if actuator_forcerange.ndim == 3:
+    actuator_forcerange = actuator_forcerange[0]
+
+  actuator_force = asset.data.actuator_force
+  out_of_limits = []
   for actuator in asset.actuators:
-    # Handle DelayedActuator wrapper
-    base_actuator = getattr(actuator, 'base_actuator', actuator)
-    target_ids = base_actuator.target_ids
-    force_limit = getattr(base_actuator, 'force_limit', None)
-    if force_limit is not None:
-      joint_effort_limits[:, target_ids] = force_limit
-  
-  # Select only the joints specified in asset_cfg
-  joint_effort_limits = joint_effort_limits[:, asset_cfg.joint_ids]
-  # mjlab uses actuator_force instead of applied_torque
-  applied_torque = torch.abs(asset.data.actuator_force[:, asset_cfg.joint_ids])
-  out_of_limits = (applied_torque - joint_effort_limits * limit_ratio).clip(min=0)
-  return torch.sum(torch.square(out_of_limits), dim=-1)
+    base_actuator = actuator.base_actuator
+    target_names = list(base_actuator.target_names)
+    ctrl_ids_local = base_actuator.ctrl_ids
+    ctrl_ids_global = base_actuator.global_ctrl_ids
+    for idx, joint_name in enumerate(target_names):
+      if joint_name not in selected_joint_names:
+        continue
+      ctrl_id_local = int(ctrl_ids_local[idx])
+      ctrl_id_global = int(ctrl_ids_global[idx])
+      effort_limit = torch.max(torch.abs(actuator_forcerange[ctrl_id_global]))
+      torque_abs = torch.abs(actuator_force[:, ctrl_id_local])
+      out_of_limits.append(torch.clamp(torque_abs - effort_limit * limit_ratio, min=0.0))
+
+  if len(out_of_limits) == 0:
+    raise RuntimeError("No actuator channels matched selected joints for torque limit reward.")
+  out_of_limits_tensor = torch.stack(out_of_limits, dim=-1)
+  return torch.sum(torch.square(out_of_limits_tensor), dim=-1)
 
 
 def undesired_contacts(

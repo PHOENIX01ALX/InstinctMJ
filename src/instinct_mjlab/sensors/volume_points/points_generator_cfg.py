@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
 import torch
 from typing import Callable
 
@@ -8,7 +8,7 @@ from .points_generator import grid3d_points_generator
 class PointsGeneratorCfg:
     """Specifying how the volume points are generated."""
 
-    func: Callable = None  # type: ignore
+    func: Callable = MISSING  # type: ignore
 
 @dataclass(kw_only=True)
 class Grid3dPointsGeneratorCfg(PointsGeneratorCfg):

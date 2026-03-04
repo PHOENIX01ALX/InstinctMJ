@@ -284,7 +284,7 @@ class MotionReferenceManager(Sensor):
     @property
     def joint_names(self) -> list[str]:
         """Get the joint names of the articulation."""
-        return self.isaac_joint_names
+        return self.sim_joint_names
 
     @property
     def num_bodies(self):
@@ -440,7 +440,7 @@ class MotionReferenceManager(Sensor):
             A tuple of lists containing the joint indices and names.
         """
         if joint_subset is None:
-            joint_subset = self.isaac_joint_names
+            joint_subset = self.sim_joint_names
         # find joints
         return string_utils.resolve_matching_names(name_keys, joint_subset, preserve_order)
 
@@ -500,7 +500,7 @@ class MotionReferenceManager(Sensor):
         """
         input_device = joint_pos.device
         joint_pos = joint_pos.to(self.device)
-        all_link_poses = self._robot_kinematics_chain.forward_kinematics(joint_pos[:, self._joint_order_isaac_to_pk])
+        all_link_poses = self._robot_kinematics_chain.forward_kinematics(joint_pos[:, self._joint_order_sim_to_pk])
         link_pos_quat_b = torch.zeros(joint_pos.shape[0], self.num_link_to_ref, 7, device=self.device)
         for link_idx, link_name in enumerate(self.cfg.link_of_interests):
             pose_mat = all_link_poses[link_name].get_matrix().reshape(-1, 4, 4)
@@ -651,7 +651,7 @@ class MotionReferenceManager(Sensor):
         self._num_envs = self._entity.data.default_root_state.shape[0]
         self._num_joints = self._entity.num_joints
         self._ALL_INDICES = torch.arange(self._num_envs, device=self.device)
-        self.isaac_joint_names = list(self._entity.joint_names)
+        self.sim_joint_names = list(self._entity.joint_names)
 
         self._data = self.cfg.data_class_type.make_empty(
             self._num_envs,
@@ -772,17 +772,17 @@ class MotionReferenceManager(Sensor):
                 os.chdir(prev_cwd)
         else:
             self._robot_kinematics_chain = pk.build_chain_from_urdf(model_content).to(dtype=torch.float, device=self.device)
-        # joint_pos_pk = joint_pos_isaac[_joint_order_isaac_to_pk]
-        self._joint_order_isaac_to_pk = torch.ones(self._num_joints, device=self.device, dtype=torch.long) * -1
+        # joint_pos_pk = joint_pos_sim[_joint_order_sim_to_pk]
+        self._joint_order_sim_to_pk = torch.ones(self._num_joints, device=self.device, dtype=torch.long) * -1
         for joint_i, joint_name in enumerate(self._robot_kinematics_chain.get_joint_parameter_names()):
-            if not joint_name in self.isaac_joint_names:
+            if not joint_name in self.sim_joint_names:
                 raise RuntimeError(
                     f"Joint name {joint_name} in the robot kinematics chain is not found in the physics simulation"
                     " view."
                 )
 
-            joint_idx_isaac = self.isaac_joint_names.index(joint_name)
-            self._joint_order_isaac_to_pk[joint_i] = joint_idx_isaac
+            joint_idx_sim = self.sim_joint_names.index(joint_name)
+            self._joint_order_sim_to_pk[joint_i] = joint_idx_sim
         # TODO: Considering tracking link is already known from config,
         # forward kinematics can be accelerated by ONNX or JIT.
 

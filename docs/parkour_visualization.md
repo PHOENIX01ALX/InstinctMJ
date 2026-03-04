@@ -2,7 +2,7 @@
 
 ## 概述
 
-Parkour 任务的命令可视化已从 Isaac Lab 的 `VisualizationMarkers`（空实现）迁移到 mjlab 的原生 MuJoCo 几何体可视化系统。
+Parkour 任务的命令可视化已从 旧框架 的 `VisualizationMarkers`（空实现）迁移到 mjlab 的原生 MuJoCo 几何体可视化系统。
 
 ## 可视化内容
 
@@ -53,9 +53,9 @@ cfg.commands = {
 
 ## 实现细节
 
-### 与 Isaac Lab 的差异
+### 与 旧框架 的差异
 
-| 特性 | Isaac Lab | mjlab (新实现) |
+| 特性 | 旧框架 | mjlab (新实现) |
 |------|-----------|----------------|
 | 可视化系统 | `VisualizationMarkers` (USD) | MuJoCo 原生几何体 |
 | 目标位置 | 红色圆柱 | 红色圆柱（相同） |

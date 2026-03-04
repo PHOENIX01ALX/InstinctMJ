@@ -1,4 +1,4 @@
-"""Shared scene visual style utilities for Instinct_mjlab tasks.
+"""Shared scene visual style utilities for Instinct Mj tasks.
 
 This module centralizes the native-viewer environment style so each task cfg
 can apply the same sky/ground look with a single helper call.

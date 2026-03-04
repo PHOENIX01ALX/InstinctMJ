@@ -103,10 +103,7 @@ class InstinctRlEnv(ManagerBasedRlEnv):
       )
       print_info(f"[INFO] {self.reward_manager}")
 
-    monitor_cfg = getattr(self.cfg, "monitors", None)
-    if monitor_cfg is None:
-      monitor_cfg = {}
-    self.monitor_manager = MonitorManager(monitor_cfg, self)
+    self.monitor_manager = MonitorManager(self.cfg.monitors, self)
 
   @staticmethod
   def _as_multi_reward_cfg(rewards_cfg):
@@ -134,10 +131,9 @@ class InstinctRlEnv(ManagerBasedRlEnv):
 
   def step(self, action: torch.Tensor):
     obs, reward, terminated, truncated, extras = super().step(action)
-    if getattr(self, "monitor_manager", None) is not None:
-      monitor_infos = self.monitor_manager.update(dt=self.step_dt)
-      extras.setdefault("step", {})
-      extras["step"].update(monitor_infos)
+    monitor_infos = self.monitor_manager.update(dt=self.step_dt)
+    extras.setdefault("step", {})
+    extras["step"].update(monitor_infos)
     return obs, reward, terminated, truncated, extras
 
   def update_visualizers(self, visualizer: DebugVisualizer) -> None:
@@ -157,15 +153,12 @@ class InstinctRlEnv(ManagerBasedRlEnv):
     if isinstance(env_ids, Sequence):
       env_ids = torch.as_tensor(env_ids, device=self.device, dtype=torch.int64)
 
-    monitor_infos = None
-    if getattr(self, "monitor_manager", None) is not None:
-      monitor_infos = self.monitor_manager.reset(env_ids, is_episode=True)
+    monitor_infos = self.monitor_manager.reset(env_ids, is_episode=True)
 
     super()._reset_idx(env_ids)
 
-    if monitor_infos is not None:
-      self.extras["log"] = self.extras.get("log", {})
-      self.extras["log"].update(monitor_infos)
+    self.extras["log"] = self.extras.get("log", {})
+    self.extras["log"].update(monitor_infos)
 
   """
   Properties.

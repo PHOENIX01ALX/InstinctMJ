@@ -195,7 +195,7 @@ def raycast_mesh_grouped(
         ],
         device=meshes[0].device,
     )
-    # NOTE: Synchronize is not needed anymore, but we keep it for now. Check with @dhoeller and Original implementation in IsaacLab.
+    # NOTE: Synchronize is not needed anymore, but we keep it for now. Kept for compatibility with historical implementation notes.
     wp.synchronize()
 
     if return_distance:

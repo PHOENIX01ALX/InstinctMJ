@@ -1,9 +1,4 @@
-"""Instinct-RL CLI argument helpers for Instinct_mjlab.
-
-Original: InstinctLab/scripts/instinct_rl/cli_args.py
-Migrated: replaces Isaac Lab ``load_cfg_from_registry`` with
-          ``instinct_mjlab.tasks.registry`` API; drops Isaac Sim dependency.
-"""
+"""Instinct-RL CLI argument helpers."""
 
 from __future__ import annotations
 
@@ -52,7 +47,7 @@ def parse_instinct_rl_cfg(task_name: str, args_cli: argparse.Namespace) -> "Inst
     """
     from instinct_mjlab.tasks.registry import load_instinct_rl_cfg
 
-    # load the default configuration from Instinct_mjlab registry
+    # load the default configuration from Instinct Mj registry
     instinctrl_cfg = load_instinct_rl_cfg(task_name)
     instinctrl_cfg = update_instinct_rl_cfg(instinctrl_cfg, args_cli)
     return instinctrl_cfg

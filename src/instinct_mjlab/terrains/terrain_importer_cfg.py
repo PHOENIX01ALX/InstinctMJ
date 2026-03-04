@@ -80,7 +80,6 @@ class TerrainImporterCfg(TerrainImporterCfgBase):
     Available options are "plane" and "generator".
 
     ## NOTE
-    The TerrainImporter keeps "hacked_generator" as a compatibility alias.
-    Runtime behavior is mjlab-native and routes "hacked_generator" through
-    the same generator pipeline as "generator".
+    The TerrainImporter also supports "hacked_generator" and routes it
+    through the same generator pipeline as "generator".
     """

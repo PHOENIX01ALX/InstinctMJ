@@ -40,7 +40,7 @@ class EmberUcb(AmassMotion):
         joint_pos = torch.as_tensor(motion_data["dof_positions"].astype(np.float32))  # (N, num_joints)
         joint_vel = torch.as_tensor(motion_data["dof_velocities"].astype(np.float32))  # (N, num_joints)
 
-        retargetted_joints_to_output_joints_ids = [joint_names.index(j_name) for j_name in self.isaac_joint_names]
+        retargetted_joints_to_output_joints_ids = [joint_names.index(j_name) for j_name in self.sim_joint_names]
         joint_pos = joint_pos[:, retargetted_joints_to_output_joints_ids]
         joint_vel = joint_vel[:, retargetted_joints_to_output_joints_ids]
 

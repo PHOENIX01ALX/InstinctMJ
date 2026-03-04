@@ -345,7 +345,7 @@ class HfTerrainBaseCfg(SubTerrainCfg):
         # MuJoCo hfield sampling in mjlab assumes grid counts use
         # `int(size / horizontal_scale)` (no `+1`), and border uses
         # `int(border_width / horizontal_scale)`.
-        # Keeping Isaac-style `+1` here introduces seam artifacts between
+        # Keeping legacy `+1` here introduces seam artifacts between
         # neighboring tiles (boundary samples fall into mismatched cells),
         # which amplifies with deeper terrains.
         width_pixels = int(self.size[0] / self.horizontal_scale)

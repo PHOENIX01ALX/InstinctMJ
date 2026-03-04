@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import MISSING, dataclass, field
 
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal, Sequence
@@ -16,7 +16,7 @@ class AmassMotionCfg(MotionBufferCfg):
 
     class_type: type = AmassMotion
 
-    path: str | None = None
+    path: str = MISSING  # type: ignore[assignment]
     """ the path to the motion dataset """
 
     supported_file_endings: Sequence[str] = field(
@@ -111,7 +111,3 @@ class AmassMotionCfg(MotionBufferCfg):
 
     ensure_link_below_zero_ground: bool = True
     """ Whether to ensure no link is below zero ground by raising the base position if necessary. """
-
-    def __post_init__(self) -> None:
-        """Post-initialization to ensure required fields are set."""
-        assert self.path is not None, "AmassMotionCfg.path must be provided."

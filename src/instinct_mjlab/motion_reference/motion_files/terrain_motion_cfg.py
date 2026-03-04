@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
 
 import torch
 from collections.abc import Callable  # noqa: F401
@@ -16,7 +16,7 @@ class TerrainMotionCfg(AmassMotionCfg):
 
     class_type: type = TerrainMotion
 
-    metadata_yaml: str | None = None
+    metadata_yaml: str = MISSING
     """YAML file containing the motion matching configuration.
     Please refer to the `MotionMatchedTerrainCfg` for the expected structure.
     """
@@ -29,8 +29,6 @@ class TerrainMotionCfg(AmassMotionCfg):
 
     def __post_init__(self) -> None:
         """Post-initialization to ensure the motion matching YAML file is set."""
-        super().__post_init__()
-        assert self.metadata_yaml is not None, "TerrainMotionCfg.metadata_yaml must be provided."
         assert (
             self.filtered_motion_selection_filepath is None
         ), "TerrainMotionCfg does not support filtered_motion_selection_filepath. Please use metadata_yaml instead."

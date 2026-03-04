@@ -26,21 +26,23 @@ class InstinctRlVecEnvWrapper(VecEnv):
     self.device = torch.device(self.unwrapped.device)
     self.max_episode_length = self.unwrapped.max_episode_length
     self.num_actions = self.unwrapped.action_manager.total_action_dim
-    self.num_rewards = 1
     self._log_defaults: dict[str, torch.Tensor] = {}
 
     active_groups = set(self.unwrapped.observation_manager.active_terms.keys())
-    if self.policy_group not in active_groups:
-      raise ValueError(
-        f"Policy observation group '{self.policy_group}' not found. "
-        f"Available groups: {sorted(active_groups)}"
-      )
     if self.critic_group is not None and self.critic_group not in active_groups:
       self.critic_group = None
 
     self._group_map = {"policy": self.policy_group}
     if self.critic_group is not None:
       self._group_map["critic"] = self.critic_group
+
+    self.num_rewards = int(getattr(self.unwrapped, "num_rewards", 1))
+    self.num_obs = self._group_flat_dim(self.policy_group)
+    self.num_critic_obs = (
+      self._group_flat_dim(self.critic_group)
+      if self.critic_group is not None
+      else None
+    )
 
     # Reset once because instinct_rl runner does not call reset before rollout.
     self.env.reset()
@@ -52,6 +54,18 @@ class InstinctRlVecEnvWrapper(VecEnv):
   @property
   def render_mode(self) -> str | None:
     return self.env.render_mode
+
+  @property
+  def observation_space(self):
+    return self.env.observation_space
+
+  @property
+  def action_space(self):
+    return self.env.action_space
+
+  @classmethod
+  def class_name(cls) -> str:
+    return cls.__name__
 
   @property
   def unwrapped(self) -> ManagerBasedRlEnv:
@@ -67,6 +81,15 @@ class InstinctRlVecEnvWrapper(VecEnv):
 
   def seed(self, seed: int = -1) -> int:
     return self.unwrapped.seed(seed)
+
+  def get_obs_segments(self, group_name: str = "policy") -> dict[str, tuple[int, ...]]:
+    source_group = self._group_map.get(group_name, group_name)
+    active_terms = self.unwrapped.observation_manager.active_terms[source_group]
+    term_dims = self.unwrapped.observation_manager.group_obs_term_dim[source_group]
+    obs_segments: dict[str, tuple[int, ...]] = {}
+    for term_name, term_dim in zip(active_terms, term_dims, strict=False):
+      obs_segments[term_name] = term_dim
+    return obs_segments
 
   def get_obs_format(self) -> dict[str, dict[str, tuple[int, ...]]]:
     obs_format: dict[str, dict[str, tuple[int, ...]]] = {}
@@ -186,3 +209,15 @@ class InstinctRlVecEnvWrapper(VecEnv):
       term_tensor = group_obs[term_name]
       flattened_terms.append(term_tensor.flatten(start_dim=1))
     return torch.cat(flattened_terms, dim=1)
+
+  def _group_flat_dim(self, group_name: str | None) -> int:
+    if group_name is None:
+      return 0
+    term_dims = self.unwrapped.observation_manager.group_obs_term_dim[group_name]
+    flat_dim = 0
+    for term_dim in term_dims:
+      term_flat_dim = 1
+      for dim in term_dim:
+        term_flat_dim *= int(dim)
+      flat_dim += term_flat_dim
+    return int(flat_dim)

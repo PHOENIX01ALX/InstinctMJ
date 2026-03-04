@@ -1,4 +1,4 @@
-"""Register instinct_mjlab BeyondMimic G1 tasks."""
+"""Register Instinct Mj BeyondMimic G1 tasks."""
 
 from instinct_mjlab.tasks.registry import register_instinct_task
 

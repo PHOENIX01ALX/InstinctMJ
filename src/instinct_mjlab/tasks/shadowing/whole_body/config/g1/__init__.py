@@ -1,4 +1,4 @@
-"""Register instinct_mjlab whole-body shadowing G1 tasks."""
+"""Register Instinct Mj whole-body shadowing G1 tasks."""
 
 from instinct_mjlab.tasks.registry import register_instinct_task
 

@@ -198,7 +198,6 @@ class ShadowingCommandBase(CommandTerm):
         if isinstance(cfg.asset_cfg, SceneEntityCfg):
             cfg.asset_cfg.resolve(env.scene)
 
-        # self.robot: Articulation = env.scene[cfg.asset_name]
         self._motion_reference: MotionReferenceManager = env.scene[cfg.motion_reference.name]
         self._command: torch.Tensor = None  # override in the child class # type: ignore
         self._mask: torch.Tensor = None  # override in the child class # type: ignore
@@ -1204,7 +1203,6 @@ class JointPosRefCommand(ShadowingCommandBase):
         # get and copy the default joint position
         # shape (num_envs, num_joints)
         robot_default_joint_pos = self._env.scene[cfg.asset_cfg.name].data.default_joint_pos
-        assert robot_default_joint_pos is not None
         if self._joint_ids_tensor is None:
             self._default_joint_pos = robot_default_joint_pos.clone()
         else:
@@ -1365,7 +1363,6 @@ class JointVelRefCommand(ShadowingCommandBase):
         # get and copy the default joint velocity
         # shape (num_envs, num_joints)
         robot_default_joint_vel = self._env.scene[cfg.asset_cfg.name].data.default_joint_vel
-        assert robot_default_joint_vel is not None
         if self._joint_ids_tensor is None:
             self._default_joint_vel = robot_default_joint_vel.clone()
         else:
@@ -1853,8 +1850,7 @@ class LinkPosErrRefCommand(LinkPosRefCommand):
             start_point: The starting point of the arrow in shape (N, 3)
         """
         # obtain default scale of the marker
-        arrow_marker_cfg = getattr(getattr(self.cfg, "visualizer_cfg", None), "markers", {}).get("arrow", None)
-        default_scale = getattr(arrow_marker_cfg, "scale", (0.35, 0.05, 0.05))
+        default_scale = self.cfg.visualizer_cfg.markers["arrow"].scale
         default_direction = torch.zeros_like(direction)
         default_direction[:, 0] = 1.0
         normalized_direction = direction / torch.norm(direction, dim=-1, keepdim=True)

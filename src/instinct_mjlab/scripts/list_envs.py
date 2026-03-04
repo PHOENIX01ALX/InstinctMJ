@@ -1,4 +1,4 @@
-"""List available Instinct-RL migrated tasks."""
+"""List available Instinct-RL tasks."""
 
 from __future__ import annotations
 

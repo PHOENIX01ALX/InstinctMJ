@@ -389,15 +389,13 @@ def _build_run_name(cfg: ManagerBasedRlEnvCfg) -> str:
 
 
 def _apply_post_init_overrides(cfg: ManagerBasedRlEnvCfg, play: bool) -> None:
-  joint_pos_action = cfg.actions.get("joint_pos")
-  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action: JointPositionActionCfg = cfg.actions["joint_pos"]
   joint_pos_action.scale = copy.deepcopy(beyondmimic_action_scale)
 
   cfg.run_name = _build_run_name(cfg)
 
   if play:
-    base_velocity_cmd = cfg.commands.get("base_velocity")
-    assert isinstance(base_velocity_cmd, UniformVelocityCommandCfg)
+    base_velocity_cmd: UniformVelocityCommandCfg = cfg.commands["base_velocity"]
     base_velocity_cmd.resampling_time_range = (2.0, 2.0)
     cfg.events["base_external_force_torque"] = None
     cfg.events["push_robot"] = None

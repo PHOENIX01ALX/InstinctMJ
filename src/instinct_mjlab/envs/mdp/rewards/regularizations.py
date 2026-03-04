@@ -89,27 +89,27 @@ def _body_lin_acc_w(
     asset_cfg: SceneEntityCfg,
 ) -> torch.Tensor:
     """Compute body linear acceleration from step-to-step link linear velocity."""
-    body_lin_vel_w = asset.data.body_link_lin_vel_w[:, asset_cfg.body_ids, :]
-    acc_cache_name = f"_instinct_body_lin_acc_w_{asset_cfg.name}"
-    acc_step_cache_name = f"_instinct_body_lin_acc_step_{asset_cfg.name}"
+    body_link_lin_vel_w = asset.data.body_link_lin_vel_w[:, asset_cfg.body_ids, :]
+    acc_cache_name = f"_instinct_body_link_lin_acc_w_{asset_cfg.name}"
+    acc_step_cache_name = f"_instinct_body_link_lin_acc_step_{asset_cfg.name}"
     sim_step = getattr(env, "_sim_step_counter", None)
     if sim_step is not None and getattr(env, acc_step_cache_name, None) == sim_step:
-        cached_body_lin_acc_w = getattr(env, acc_cache_name, None)
-        if cached_body_lin_acc_w is not None and cached_body_lin_acc_w.shape == body_lin_vel_w.shape:
-            return cached_body_lin_acc_w
+        cached_body_link_lin_acc_w = getattr(env, acc_cache_name, None)
+        if cached_body_link_lin_acc_w is not None and cached_body_link_lin_acc_w.shape == body_link_lin_vel_w.shape:
+            return cached_body_link_lin_acc_w
 
-    cache_name = f"_instinct_prev_body_lin_vel_w_{asset_cfg.name}"
-    prev_body_lin_vel_w = getattr(env, cache_name, None)
-    if prev_body_lin_vel_w is None or prev_body_lin_vel_w.shape != body_lin_vel_w.shape:
-        body_lin_acc_w = torch.zeros_like(body_lin_vel_w)
+    cache_name = f"_instinct_prev_body_link_lin_vel_w_{asset_cfg.name}"
+    prev_body_link_lin_vel_w = getattr(env, cache_name, None)
+    if prev_body_link_lin_vel_w is None or prev_body_link_lin_vel_w.shape != body_link_lin_vel_w.shape:
+        body_link_lin_acc_w = torch.zeros_like(body_link_lin_vel_w)
     else:
-        body_lin_acc_w = (body_lin_vel_w - prev_body_lin_vel_w) / env.step_dt
-    body_lin_acc_w[env.episode_length_buf <= 1] = 0.0
-    setattr(env, cache_name, body_lin_vel_w.detach().clone())
-    setattr(env, acc_cache_name, body_lin_acc_w)
+        body_link_lin_acc_w = (body_link_lin_vel_w - prev_body_link_lin_vel_w) / env.step_dt
+    body_link_lin_acc_w[env.episode_length_buf <= 1] = 0.0
+    setattr(env, cache_name, body_link_lin_vel_w.detach().clone())
+    setattr(env, acc_cache_name, body_link_lin_acc_w)
     if sim_step is not None:
         setattr(env, acc_step_cache_name, sim_step)
-    return body_lin_acc_w
+    return body_link_lin_acc_w
 
 
 def motors_power_square(
@@ -962,23 +962,13 @@ def contact_slide(
     # Penalize body sliding
     asset = env.scene[asset_cfg.name]
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    force_history = contact_sensor.data.force_history
-    if force_history is not None:
-        contacts = torch.max(torch.norm(force_history[:, sensor_cfg.body_ids], dim=-1), dim=-1)[0] > threshold
-    else:
-        force = contact_sensor.data.force
-        if force is None:
-            if isinstance(asset_cfg.body_ids, slice):
-                num_bodies = asset.data.body_link_lin_vel_w.shape[1]
-            else:
-                num_bodies = len(asset_cfg.body_ids)
-            contacts = torch.zeros(
-                (env.num_envs, num_bodies),
-                device=env.device,
-                dtype=torch.bool,
-            )
-        else:
-            contacts = torch.norm(force[:, sensor_cfg.body_ids], dim=-1) > threshold
+    contacts = (
+        torch.max(
+            torch.norm(contact_sensor.data.force_history[:, sensor_cfg.body_ids], dim=-1),
+            dim=-1,
+        )[0]
+        > threshold
+    )
 
     body_vel = asset.data.body_link_lin_vel_w[:, asset_cfg.body_ids, :2]
     body_ang_vel = asset.data.body_link_ang_vel_w[:, asset_cfg.body_ids, :2]
@@ -1003,23 +993,13 @@ def contact_rotate(
     # Penalize body rotation
     asset = env.scene[asset_cfg.name]
     contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
-    force_history = contact_sensor.data.force_history
-    if force_history is not None:
-        contacts = torch.max(torch.norm(force_history[:, sensor_cfg.body_ids], dim=-1), dim=-1)[0] > threshold
-    else:
-        force = contact_sensor.data.force
-        if force is None:
-            if isinstance(asset_cfg.body_ids, slice):
-                num_bodies = asset.data.body_link_ang_vel_w.shape[1]
-            else:
-                num_bodies = len(asset_cfg.body_ids)
-            contacts = torch.zeros(
-                (env.num_envs, num_bodies),
-                device=env.device,
-                dtype=torch.bool,
-            )
-        else:
-            contacts = torch.norm(force[:, sensor_cfg.body_ids], dim=-1) > threshold
+    contacts = (
+        torch.max(
+            torch.norm(contact_sensor.data.force_history[:, sensor_cfg.body_ids], dim=-1),
+            dim=-1,
+        )[0]
+        > threshold
+    )
 
     body_ang_vel = asset.data.body_link_ang_vel_w[:, asset_cfg.body_ids, :2]
     reward = torch.sum(body_ang_vel.norm(dim=-1) * contacts, dim=1)
@@ -1089,15 +1069,9 @@ def undesired_contacts(
 ) -> torch.Tensor:
     """Penalize undesired contacts as the number of violations that are above a threshold.
 
-    Mirrors Isaac Lab's ``mdp.undesired_contacts``: for each body, check if the
+    Mirrors the legacy ``mdp.undesired_contacts``: for each body, check if the
     maximum contact-force magnitude over the sensor's history window exceeds the
     threshold, then count these bodies.
-
-    When ``history_length > 0`` is configured on the sensor, ``force_history``
-    (shape ``[B, N, H, 3]``) is used and the maximum is taken over the history
-    dimension – matching the original ``torch.max(..., dim=1)`` over
-    ``net_forces_w_history``.  When no history is available, falls back to the
-    instantaneous ``force`` (shape ``[B, N, 3]``).
     
     Args:
         env: The environment.
@@ -1109,30 +1083,14 @@ def undesired_contacts(
     # extract the used quantities (to enable type-hinting)
     contact_sensor: ContactSensor = env.scene[sensor_name]
     
-    # Prefer force_history [B, N, H, 3] when available (matches Isaac Lab's net_forces_w_history behaviour).
     force_history = contact_sensor.data.force_history
-    if force_history is not None:
-        # force_history shape: [B, N, H, 3]
-        # Take the norm of each force vector, then max over history steps per body.
-        force_norms = torch.norm(force_history, dim=-1)  # (B, N, H)
-        max_force_norms = torch.max(force_norms, dim=-1)[0]  # (B, N)
-        is_contact = max_force_norms > threshold  # (B, N)
-    else:
-        # Fallback: instantaneous force [B, N, 3]
-        force = contact_sensor.data.force
-        if force is None:
-            return torch.zeros(env.num_envs, device=env.device)
-        is_contact = torch.norm(force, dim=-1) > threshold  # (B, N)
+    force_norms = torch.norm(force_history, dim=-1)  # (B, N, H)
+    max_force_norms = torch.max(force_norms, dim=-1)[0]  # (B, N)
+    is_contact = max_force_norms > threshold  # (B, N)
     
-    # Filter by body_ids if asset_cfg is provided (like Isaac Lab)
+    # Filter by body_ids if asset_cfg is provided (legacy behavior)
     if asset_cfg is not None:
-        # Manager resolves SceneEntityCfg once during setup; avoid resolving every step.
-        body_ids = asset_cfg.body_ids
-        if asset_cfg.body_names is not None and isinstance(body_ids, slice):
-            asset_cfg.resolve(env.scene)
-            body_ids = asset_cfg.body_ids
-        # Index only the specified bodies
-        is_contact = is_contact[:, body_ids]
+        is_contact = is_contact[:, asset_cfg.body_ids]
     
     # sum over contacts for each environment
     return torch.sum(is_contact.float(), dim=1)

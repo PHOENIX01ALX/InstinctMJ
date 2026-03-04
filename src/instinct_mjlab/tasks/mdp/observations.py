@@ -1,4 +1,4 @@
-"""Observation helpers for instinct_mjlab perceptive tasks."""
+"""Observation helpers for Instinct Mj perceptive tasks."""
 
 from __future__ import annotations
 
@@ -196,7 +196,8 @@ def perceptive_depth_image(
 
   if isinstance(sensor, CameraSensor):
     depth = sensor.data.depth
-    assert depth is not None, f"Camera '{sensor_name}' has no depth data"
+    if depth is None:
+      raise RuntimeError(f"Camera '{sensor_name}' has no depth data")
     image = depth.permute(0, 3, 1, 2)
     return _normalize_crop_resize_depth(
       image,
@@ -406,7 +407,8 @@ class _PerceptiveRaycastNoisedBase(ManagerTermBase):
       self._frame_initialized[refresh] = True
 
     self._frame_step_count += 1
-    assert self._frame_cache is not None
+    if self._frame_cache is None:
+      raise RuntimeError("Depth frame cache is not initialized.")
     return self._frame_cache
 
 

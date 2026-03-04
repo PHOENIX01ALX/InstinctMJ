@@ -33,7 +33,6 @@ class NoiseModel:
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         """Apply noise to input data."""
-        assert self._noise_model_cfg.noise_cfg is not None
         return self._noise_model_cfg.noise_cfg.apply(data)
 
 

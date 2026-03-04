@@ -1,8 +1,4 @@
-"""Train Instinct-RL policies on top of mjlab environments.
-
-Original: InstinctLab/scripts/instinct_rl/train.py
-Migrated: replaces Isaac Sim / Isaac Lab runtime with mjlab + tyro CLI.
-"""
+"""Train Instinct-RL policies on top of mjlab environments."""
 
 from __future__ import annotations
 

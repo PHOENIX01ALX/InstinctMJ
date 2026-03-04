@@ -176,12 +176,12 @@ def feet_orientation_contact(
   asset: Entity = env.scene[asset_cfg.name]
   contact_sensor: ContactSensor = env.scene[sensor_name]
 
-  body_quat_w = asset.data.body_link_quat_w[:, asset_cfg.body_ids, :]
-  num_envs, num_feet = body_quat_w.shape[:2]
+  body_link_quat_w = asset.data.body_link_quat_w[:, asset_cfg.body_ids, :]
+  num_envs, num_feet = body_link_quat_w.shape[:2]
 
   gravity_w = asset.data.gravity_vec_w.unsqueeze(1).expand(-1, num_feet, -1)
   projected_gravity = quat_apply_inverse(
-    body_quat_w.reshape(-1, 4), gravity_w.reshape(-1, 3)
+    body_link_quat_w.reshape(-1, 4), gravity_w.reshape(-1, 3)
   ).reshape(num_envs, num_feet, 3)
   orientation_error = torch.linalg.vector_norm(projected_gravity[:, :, :2], dim=-1)
 
@@ -204,11 +204,11 @@ def feet_at_plane(
 ) -> torch.Tensor:
   """Reward feet being at certain height above the ground plane."""
   asset: Entity = env.scene[asset_cfg.name]
-  body_pos_w = asset.data.body_link_pos_w
+  body_link_pos_w = asset.data.body_link_pos_w
 
   body_ids = asset_cfg.body_ids
   if isinstance(body_ids, slice):
-    body_ids = list(range(body_pos_w.shape[1]))[body_ids]
+    body_ids = list(range(body_link_pos_w.shape[1]))[body_ids]
   else:
     body_ids = list(body_ids)
 
@@ -225,8 +225,8 @@ def feet_at_plane(
   left_hit_z = torch.where(left_sensor.data.distances < 0.0, 0.0, left_hit_z)
   right_hit_z = torch.where(right_sensor.data.distances < 0.0, 0.0, right_hit_z)
 
-  left_height = body_pos_w[:, body_ids[0], 2].unsqueeze(-1)
-  right_height = body_pos_w[:, body_ids[1], 2].unsqueeze(-1)
+  left_height = body_link_pos_w[:, body_ids[0], 2].unsqueeze(-1)
+  right_height = body_link_pos_w[:, body_ids[1], 2].unsqueeze(-1)
 
   left_contact = is_contact[:, 0:1].float()
   right_contact = is_contact[:, 1:2].float()
@@ -244,10 +244,10 @@ def feet_close_xy_gauss(
 ) -> torch.Tensor:
   """Penalize when feet are too close together in the y distance."""
   asset: Entity = env.scene[asset_cfg.name]
-  body_pos_w = asset.data.body_link_pos_w[:, asset_cfg.body_ids, :]
+  body_link_pos_w = asset.data.body_link_pos_w[:, asset_cfg.body_ids, :]
 
-  left_foot_xy = body_pos_w[:, 0, :2]
-  right_foot_xy = body_pos_w[:, 1, :2]
+  left_foot_xy = body_link_pos_w[:, 0, :2]
+  right_foot_xy = body_link_pos_w[:, 1, :2]
   heading_w = asset.data.heading_w
 
   cos_heading = torch.cos(heading_w)

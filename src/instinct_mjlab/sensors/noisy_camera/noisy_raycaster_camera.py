@@ -15,9 +15,7 @@ if TYPE_CHECKING:
 class NoisyRayCasterCamera(NoisyCameraMixin, GroupedRayCasterCamera):
     """NoisyRayCasterCamera with noise pipeline and history buffers.
 
-    NOTE(migration): The original implementation inherited from a dedicated
-    RayCasterCamera class. In mjlab, there is no separate RayCasterCamera
-    class, so we use GroupedRayCasterCamera as the base instead.
+    Uses GroupedRayCasterCamera as the ray-caster base implementation.
     """
 
     cfg: NoisyRayCasterCameraCfg

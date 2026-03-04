@@ -1,9 +1,5 @@
 """Visualize AMASS motion data by playing retargetted motions on the robot (mjlab).
 
-Original: InstinctLab/scripts/amass_visualize.py
-Migrated: replaces Isaac Sim scene/render loop with mjlab MuJoCo viewer.
-          Uses mjlab ManagerBasedRlEnv / NativeMujocoViewer for visualization.
-
 NOTE: This script is a *data visualization* utility.  It loads retargetted
 motion files (or runs SMPL IK on raw AMASS data) and drives the robot joint
 positions directly — no RL policy is involved.

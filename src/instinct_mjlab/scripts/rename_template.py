@@ -1,8 +1,4 @@
-"""Rename template project — update all occurrences of 'instinct_mjlab' to a new name.
-
-Original: InstinctLab/scripts/rename_template.py
-Migrated: updated paths and default names for Instinct_mjlab project structure.
-"""
+"""Rename template project by updating package-name occurrences."""
 
 from __future__ import annotations
 
@@ -45,7 +41,7 @@ if __name__ == "__main__":
     proceed = input("Proceed? (y/n): ")
 
     if proceed.lower() == "y":
-        # rename the instinct_mjlab folder
+        # rename the Instinct Mj package folder
         src_pkg_dir = os.path.join(root_dir_path, "src", "instinct_mjlab")
         tgt_pkg_dir = os.path.join(root_dir_path, "src", new_name)
         if os.path.isdir(src_pkg_dir):

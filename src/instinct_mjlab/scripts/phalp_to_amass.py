@@ -2,9 +2,6 @@
 
 Transforms PHALP (4D-Human / Tracking Humans As Landmarks in Poses)
 output into standard AMASS npz format for downstream retargeting.
-
-Original: InstinctLab/scripts/phalp_to_amass.py
-Migrated: no Isaac Lab dependency — pure data conversion utility.
 """
 
 from __future__ import annotations

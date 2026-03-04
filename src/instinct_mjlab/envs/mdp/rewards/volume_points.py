@@ -55,20 +55,8 @@ def step_safety(
     if once:
         contacts = contact_sensor.compute_first_contact(env.step_dt)[:, contact_forces_cfg.body_ids]  # (N, B_)
     else:
-        force_history = contact_sensor.data.force_history
-        if force_history is not None:
-            contact_forces = force_history[:, contact_forces_cfg.body_ids, :]  # (N, B_, T, 3)
-            contacts = torch.norm(contact_forces, dim=-1).max(dim=-1)[0] > 1.0  # (N, B_)
-        else:
-            force = contact_sensor.data.force
-            if force is None:
-                contacts = torch.zeros(
-                    (env.num_envs, penetration_depth_max.shape[1]),
-                    device=env.device,
-                    dtype=torch.bool,
-                )
-            else:
-                contacts = torch.norm(force[:, contact_forces_cfg.body_ids], dim=-1) > 1.0  # (N, B_)
+        contact_forces = contact_sensor.data.force_history[:, contact_forces_cfg.body_ids, :]  # (N, B_, T, 3)
+        contacts = torch.norm(contact_forces, dim=-1).max(dim=-1)[0] > 1.0  # (N, B_)
 
     rewards = -torch.log(penetration_depth_max + epsilon) * contacts
     return torch.sum(rewards, dim=-1)

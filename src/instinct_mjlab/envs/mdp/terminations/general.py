@@ -52,10 +52,9 @@ def terrain_out_of_bounds(
     If the actor moves too close to the edge of the terrain, the termination is activated. The distance
     to the edge of the terrain is calculated based on the size of the terrain and the distance buffer.
     """
-    # In mjlab, Scene stores config in _cfg; terrain is None for plane terrains.
-    terrain_cfg = getattr(env.scene, '_cfg', None) and getattr(env.scene._cfg, 'terrain', None)
-    terrain_type = getattr(terrain_cfg, 'terrain_type', 'plane') if terrain_cfg is not None else 'plane'
-    if env.scene.terrain is None or terrain_type == "plane":
+    # In mjlab, Scene stores config in _cfg.
+    terrain_type = env.scene._cfg.terrain.terrain_type
+    if terrain_type == "plane":
         return torch.zeros(
             (env.num_envs,), device=env.device, dtype=torch.bool
         )  # we have infinite terrain because it is a plane
@@ -148,32 +147,13 @@ class illegal_reset_contact(ManagerTermBase):
         """
         if sensor_name is not None:
             contact_sensor: ContactSensor = env.scene.sensors[sensor_name]
-            force_history = contact_sensor.data.force_history
-            if force_history is not None:
-                force_mag = torch.max(torch.norm(force_history, dim=-1), dim=-1)[0]  # [B, N]
-            else:
-                force = contact_sensor.data.force
-                if force is None:
-                    contacts = torch.zeros(env.num_envs, device=env.device, dtype=torch.bool)
-                    force_mag = None
-                else:
-                    force_mag = torch.norm(force, dim=-1)  # [B, N]
-            if force_mag is not None:
-                if asset_cfg is not None:
-                    force_mag = force_mag[:, asset_cfg.body_ids]
-                contacts = torch.any(force_mag > threshold, dim=1)
+            force_mag = torch.max(torch.norm(contact_sensor.data.force_history, dim=-1), dim=-1)[0]  # [B, N]
+            if asset_cfg is not None:
+                force_mag = force_mag[:, asset_cfg.body_ids]
+            contacts = torch.any(force_mag > threshold, dim=1)
         else:
-            assert sensor_cfg is not None, "Either sensor_name or sensor_cfg must be provided."
             contact_sensor = env.scene.sensors[sensor_cfg.name]
-            force_history = contact_sensor.data.force_history
-            if force_history is not None:
-                force_mag = torch.max(torch.norm(force_history, dim=-1), dim=-1)[0]  # [B, N]
-            else:
-                force = contact_sensor.data.force
-                if force is None:
-                    force_mag = torch.zeros((env.num_envs, 0), device=env.device, dtype=torch.float)
-                else:
-                    force_mag = torch.norm(force, dim=-1)
+            force_mag = torch.max(torch.norm(contact_sensor.data.force_history, dim=-1), dim=-1)[0]  # [B, N]
             force_mag = force_mag[:, sensor_cfg.body_ids]
             contacts = torch.any(force_mag > threshold, dim=1)
         self.illegal_contact_counter += contacts.int()

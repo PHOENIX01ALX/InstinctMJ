@@ -18,7 +18,6 @@ class AsyncCircularBuffer(CircularBuffer):
 
     def get_by_batch_ids(self, batch_ids: Sequence[int] | None = None) -> torch.Tensor:
         # Index seems too large, potentially needing speed optimization. But we may wait and see.
-        assert self._buffer is not None
         if batch_ids is None:
             batch_ids = self._all_indices
             selected_buf = self._buffer

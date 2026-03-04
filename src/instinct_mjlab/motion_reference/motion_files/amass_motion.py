@@ -566,8 +566,8 @@ class AmassMotion(MotionBuffer):
         root_trans = torch.as_tensor(raw_data["base_pos_w"], device=self.buffer_device, dtype=torch.float)
         root_quat = torch.as_tensor(raw_data["base_quat_w"], device=self.buffer_device, dtype=torch.float)
 
-        # qpos_isaac = qpos[retargetted_joints_to_output_joints_ids]
-        retargetted_joints_to_output_joints_ids = [joint_names.index(j_name) for j_name in self.isaac_joint_names]
+        # qpos_sim = qpos[retargetted_joints_to_output_joints_ids]
+        retargetted_joints_to_output_joints_ids = [joint_names.index(j_name) for j_name in self.sim_joint_names]
         joint_pos = joint_pos[:, retargetted_joints_to_output_joints_ids]
 
         return self._pack_retargetted_motion_sequence(
@@ -596,7 +596,7 @@ class AmassMotion(MotionBuffer):
         joint_pos, root_poses = self.retargetting_func(
             smpl_poses,
             root_trans,
-            joint_names=self.isaac_joint_names,
+            joint_names=self.sim_joint_names,
             **self.cfg.retargetting_func_kwargs,
         )
         root_trans, root_quat = root_poses[..., :3], root_poses[..., 3:]  # shape [num_frames, 7]
@@ -694,11 +694,11 @@ class AmassMotion(MotionBuffer):
         )
 
     def _prepare_retargetting_func(self):
-        self.isaac_joint_names = list(self.articulation_view.joint_names)
-        # print(f"[AMASS Motion] Retargetting to {self.isaac_joint_names}")
+        self.sim_joint_names = list(self.articulation_view.joint_names)
+        # print(f"[AMASS Motion] Retargetting to {self.sim_joint_names}")
         if inspect.isclass(self.cfg.retargetting_func):
             self.retargetting_func = self.cfg.retargetting_func(
-                joint_names=self.isaac_joint_names,
+                joint_names=self.sim_joint_names,
                 device=self.buffer_device,
                 **self.cfg.retargetting_func_kwargs,
             )

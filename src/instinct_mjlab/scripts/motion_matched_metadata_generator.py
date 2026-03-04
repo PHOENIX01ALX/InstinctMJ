@@ -2,9 +2,6 @@
 
 Scans a directory tree for terrain meshes and associated motion files,
 producing a metadata.yaml consumed by TerrainMotionCfg.
-
-Original: InstinctLab/scripts/motion_matched_metadata_generator.py
-Migrated: no Isaac Sim dependency — pure filesystem utility.
 """
 
 from __future__ import annotations

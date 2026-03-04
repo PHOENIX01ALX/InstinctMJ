@@ -434,7 +434,7 @@ class G1PerceptiveVaeEnvCfg_PLAY(G1PerceptiveVaeEnvCfg):
         #         ),
         #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
         #         collision_props=sim_utils.CollisionPropertiesCfg(),
-        #         physics_material=sim_utils.RigidBodyMaterialCfg(),
+        #         physics_material=sim_utils.material_cfg,
         #         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.8, 0.3)),
         #     ),
         #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, -1.0, 0.3)),

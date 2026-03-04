@@ -2,10 +2,6 @@
 
 This tool converts robot base pose from one frame to another on a given robot
 chain, transforming GMR pickle files into retargetted npz files.
-
-Original: InstinctLab/scripts/GMR_to_instinct.py
-Migrated: no Isaac Sim dependency. Uses pytorch_kinematics directly.
-          Default URDF path updated to mjlab MJCF path.
 """
 
 from __future__ import annotations

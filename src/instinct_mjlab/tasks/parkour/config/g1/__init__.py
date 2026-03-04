@@ -1,6 +1,6 @@
-"""Register instinct_mjlab parkour G1 tasks."""
+"""Register Instinct Mj parkour G1 tasks."""
 
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
+# Copyright (c) 2022-2025, The Project Developers.
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause

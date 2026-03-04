@@ -317,7 +317,7 @@ class PoseVelocityCommand(CommandTerm):
     def _debug_vis_impl(self, visualizer) -> None:
         """Draw target positions and velocity arrows using MuJoCo geometry.
         
-        This replaces the Isaac Lab VisualizationMarkers with native MuJoCo visualization.
+        This replaces the legacy marker path with native MuJoCo visualization.
         """
         env_indices = visualizer.get_env_indices(self.num_envs)
         if not env_indices:

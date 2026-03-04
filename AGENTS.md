@@ -25,18 +25,18 @@
 - 兜底逻辑必须与源任务一致：源任务有则保留，源任务无则禁止新增。
 - reward 必须改为 mjlab reward-term 表达；其他 manager 若存在表达差异，也按 mjlab manager/config 模式迁移。
 - 地形及其他核心功能需保持行为一致（reset、command、观测/动作、终止、课程学习）。
-- 迁移后必须清理 Isaac/IsaacLab 接口残留（import、类型、字段、注释、路径）。
+- 迁移后必须清理 旧框架 接口残留（import、类型、字段、注释、路径）。
 - 对 InstinctLab 特有命名保持稳定（例如 `hack_generator`），仅在 mjlab 必要字段映射处改名。
 - 清理无效旧路径、过期注释和迁移遗留内容。
 
-## Isaac Lab 到 mjlab 对齐要点
+## 旧框架到 mjlab 对齐要点
 
 - 使用 mjlab 对应导入和命名（如 `ManagerBasedRlEnvCfg`）。
 - 将 `@configclass` 配置迁移为字典式 manager 配置对象。
 - 以下 manager 均采用字典表达：`rewards`、`observations`、`actions`、`commands`、`terminations`、`events`、`curriculum`。
 - 场景使用 `SceneCfg` + MuJoCo 资产配置；不保留 USD/`prim_path` 方案。
 - 传感器按 mjlab 方式配置并挂接到机器人实体。
-- 统一使用 `entity_name` 字段，不使用 `asset_name`。
+- 统一使用 `entity_name` 字段，不使用旧字段名。
 
 ## 兼容性约束
 

@@ -312,7 +312,7 @@ class G1PerceptiveShadowingEnvCfg_PLAY(G1PerceptiveShadowingEnvCfg):
         # put the reference in scene and move the robot elsewhere and visualize the reference
         # self.events.reset_robot.params["position_offset"] = [0.0, 1.0, 2.0]
         # self.scene.motion_reference.visualizing_robot_offset = (0.0, 0.0, 0.0)
-        # self.viewer.asset_name = "robot_reference"
+        # self.viewer.entity_name = "robot_reference"
 
         # remove some randomizations
         self.events["add_joint_default_pos"] = None
@@ -378,7 +378,7 @@ class G1PerceptiveShadowingEnvCfg_PLAY(G1PerceptiveShadowingEnvCfg):
         #         ),
         #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
         #         collision_props=sim_utils.CollisionPropertiesCfg(),
-        #         physics_material=sim_utils.RigidBodyMaterialCfg(),
+        #         physics_material=sim_utils.material_cfg,
         #         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.8, 0.3)),
         #     ),
         #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, -1.35, 0.25)),
@@ -395,7 +395,7 @@ class G1PerceptiveShadowingEnvCfg_PLAY(G1PerceptiveShadowingEnvCfg):
         #         ),
         #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
         #         collision_props=sim_utils.CollisionPropertiesCfg(),
-        #         physics_material=sim_utils.RigidBodyMaterialCfg(),
+        #         physics_material=sim_utils.material_cfg,
         #         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.8, 0.3)),
         #     ),
         #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, -2.35, 0.25)),
@@ -412,7 +412,7 @@ class G1PerceptiveShadowingEnvCfg_PLAY(G1PerceptiveShadowingEnvCfg):
         #         ),
         #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
         #         collision_props=sim_utils.CollisionPropertiesCfg(),
-        #         physics_material=sim_utils.RigidBodyMaterialCfg(),
+        #         physics_material=sim_utils.material_cfg,
         #         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.8, 0.3)),
         #     ),
         #     init_state=RigidObjectCfg.InitialStateCfg(pos=(-0.8, -1.35, 0.25)),
@@ -431,7 +431,7 @@ class G1PerceptiveShadowingEnvCfg_PLAY(G1PerceptiveShadowingEnvCfg):
         #         ),
         #         mass_props=sim_utils.MassPropertiesCfg(mass=1.0),
         #         collision_props=sim_utils.CollisionPropertiesCfg(),
-        #         physics_material=sim_utils.RigidBodyMaterialCfg(),
+        #         physics_material=sim_utils.material_cfg,
         #         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.8, 0.3)),
         #     ),
         #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, -1.0, 0.3)),

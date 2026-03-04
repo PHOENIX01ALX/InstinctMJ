@@ -1,8 +1,4 @@
-"""Play Instinct-RL policies on migrated mjlab tasks.
-
-Original: InstinctLab/scripts/instinct_rl/play.py
-Migrated: replaces Isaac Sim / Isaac Lab runtime with mjlab + tyro CLI.
-"""
+"""Play Instinct-RL policies on mjlab tasks."""
 
 from __future__ import annotations
 
@@ -519,13 +515,16 @@ def run_play(task_id: str, cfg: PlayConfig) -> None:
       )
 
     if checkpoint is not None:
-      assert runner is not None
+      if runner is None:
+        raise RuntimeError("Runner is not initialized.")
       runner.load(str(checkpoint))
       print(f"[INFO] Loaded checkpoint: {checkpoint}")
 
     if cfg.export_onnx:
-      assert checkpoint is not None
-      assert runner is not None
+      if checkpoint is None:
+        raise RuntimeError("checkpoint must be provided when export_onnx is enabled.")
+      if runner is None:
+        raise RuntimeError("Runner is not initialized.")
       onnx_output_dir = _resolve_onnx_output_dir(
         cfg=cfg,
         task_id=task_id,
@@ -552,7 +551,8 @@ def run_play(task_id: str, cfg: PlayConfig) -> None:
       )
       print(f"[INFO] Loaded ONNX policy from: {onnx_model_dir}")
     else:
-      assert runner is not None
+      if runner is None:
+        raise RuntimeError("Runner is not initialized.")
       policy = runner.get_inference_policy(device=device)
 
   rollout_steps = _resolve_rollout_steps(cfg)

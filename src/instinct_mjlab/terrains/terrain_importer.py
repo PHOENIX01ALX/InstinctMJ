@@ -42,7 +42,7 @@ class TerrainImporter(TerrainImporterBase):
     def __init__(self, cfg: TerrainImporterCfg, device: str):
         runtime_terrain_type = cfg.terrain_type
         if runtime_terrain_type == "hacked_generator":
-            # Keep the public name for compatibility, but route to mjlab native generator pipeline.
+            # Route hacked_generator through the generator runtime pipeline.
             runtime_terrain_type = "generator"
 
         self._debug_vis_enabled = False
@@ -69,7 +69,7 @@ class TerrainImporter(TerrainImporterBase):
             virtual_obstacle = virtual_obstacle_cfg.class_type(virtual_obstacle_cfg)
             self._virtual_obstacles[name] = virtual_obstacle
 
-        # Build a runtime cfg that keeps all fields but maps hacked_generator -> generator.
+        # Build a runtime cfg and map hacked_generator -> generator.
         cfg_runtime = copy.deepcopy(cfg)
         cfg_runtime.terrain_type = runtime_terrain_type
 
@@ -135,7 +135,7 @@ class TerrainImporter(TerrainImporterBase):
             self._apply_collision_debug_visual_style()
 
         # Keep Entity internals aligned with mjlab's initialization flow after
-        # building terrain spec manually in this compatibility importer.
+        # building terrain spec manually in this terrain importer.
         self._actuators = []
         self._identify_joints()
         self._apply_spec_editors()

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
 
 from mjlab.managers import ManagerTermBaseCfg
 
@@ -15,7 +15,7 @@ class MonitorSensorCfg:
 
 @dataclass(kw_only=True)
 class MonitorTermCfg(ManagerTermBaseCfg):
-    func: type[MonitorTerm] = None
+    func: type[MonitorTerm] = MISSING
 
 @dataclass(kw_only=True)
 class TorqueMonitorSensorCfg(MonitorSensorCfg):

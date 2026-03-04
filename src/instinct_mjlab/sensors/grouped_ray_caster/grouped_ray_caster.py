@@ -51,7 +51,6 @@ class GroupedRayCaster(RayCastSensor):
         self._ALL_INDICES = torch.arange(self._num_envs, device=device, dtype=torch.long)
         self.drift = torch.zeros(self._num_envs, 3, device=device, dtype=torch.float32)
 
-        assert self._local_offsets is not None and self._local_directions is not None
         self.ray_starts = self._local_offsets.unsqueeze(0).repeat(self._num_envs, 1, 1).clone()
         self.ray_directions = self._local_directions.unsqueeze(0).repeat(self._num_envs, 1, 1).clone()
         self._initialize_mesh_path_filter(mj_model, device)
@@ -59,20 +58,13 @@ class GroupedRayCaster(RayCastSensor):
 
     def prepare_rays(self) -> None:
         """PRE-GRAPH: Transform per-env local rays to world frame."""
-        assert self._data is not None
-        assert self.ray_starts is not None and self.ray_directions is not None
-        assert self._ray_pnt is not None and self._ray_vec is not None
-
         if self._frame_type == "body":
-            assert self._frame_body_id is not None
             frame_pos = self._data.xpos[:, self._frame_body_id]
             frame_mat = self._data.xmat[:, self._frame_body_id].view(-1, 3, 3)
         elif self._frame_type == "site":
-            assert self._frame_site_id is not None
             frame_pos = self._data.site_xpos[:, self._frame_site_id]
             frame_mat = self._data.site_xmat[:, self._frame_site_id].view(-1, 3, 3)
         else:  # geom
-            assert self._frame_geom_id is not None
             frame_pos = self._data.geom_xpos[:, self._frame_geom_id]
             frame_mat = self._data.geom_xmat[:, self._frame_geom_id].view(-1, 3, 3)
 
@@ -147,7 +139,6 @@ class GroupedRayCaster(RayCastSensor):
             return
 
         if self._mesh_filter_enabled:
-            assert self._allowed_geom_lut is not None
             allowed_mask = torch.zeros_like(hit_mask)
             allowed_mask[hit_mask] = self._allowed_geom_lut[geom_ids[hit_mask]]
         else:
@@ -206,7 +197,6 @@ class GroupedRayCaster(RayCastSensor):
                 break
 
             if self._mesh_filter_enabled:
-                assert self._allowed_geom_lut is not None
                 hop_allowed = torch.zeros_like(hop_hit)
                 hop_allowed[hop_hit] = self._allowed_geom_lut[hop_geom_ids[hop_hit]]
             else:

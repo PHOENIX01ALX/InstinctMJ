@@ -1,9 +1,4 @@
-"""Automatically play the last N runs of a specified task.
-
-Original: InstinctLab/scripts/multi_play.py
-Migrated: updated to use instinct-play CLI entry point (or python -m)
-          and Instinct_mjlab task naming conventions.
-"""
+"""Automatically play the last N runs of a specified task."""
 
 from __future__ import annotations
 

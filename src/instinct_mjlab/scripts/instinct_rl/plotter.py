@@ -2,9 +2,6 @@
 
 Provides a ``Plotter`` class for recording and visualizing state logs,
 reward terms, joint positions, velocities, and torques during rollouts.
-
-Original: InstinctLab/scripts/instinct_rl/plotter.py
-Migrated: no Isaac Lab dependency — pure matplotlib utility.
 """
 
 from __future__ import annotations

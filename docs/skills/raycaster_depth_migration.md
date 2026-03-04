@@ -1,16 +1,16 @@
-# Skill: Raycaster / 深度图迁移指南 — Isaac Lab → mjlab
+# Skill: Raycaster / 深度图迁移指南 — 旧框架 → mjlab
 
 ## 概述
 
-本文档描述如何将 Isaac Lab 的 RayCaster / RayCasterCamera 系统及其 InstinctLab 扩展（GroupedRayCaster、NoisyCamera）迁移到 mjlab，全部使用 **mjlab 原生 API 风格**。
+本文档描述如何将 旧框架 的 RayCaster / RayCasterCamera 系统及其 InstinctLab 扩展（GroupedRayCaster、NoisyCamera）迁移到 mjlab，全部使用 **mjlab 原生 API 风格**。
 
-The biggest change is configuration style: Isaac Lab uses nested @configclass definitions; mjlab uses dictionaries of config objects.
+The biggest change is configuration style: 旧框架 uses nested @configclass definitions; mjlab uses dictionaries of config objects.
 
 ---
 
 ## 1. 类层次对照
 
-### Isaac Lab 原版
+### 旧框架 原版
 
 ```
 SensorBase
@@ -43,7 +43,7 @@ RayCastSensor (mjlab)                     # 高度扫描直接使用
             └── NoisyGroupedRayCasterCamera  # 扩展：噪声管线 + 历史缓冲
 ```
 
-**核心原则**: 底层继承 `mjlab.sensor.RayCastSensor`，使用 `mujoco_warp.rays()` BVH 加速光线投射。配置全部采用 mjlab 原生字段（`frame=ObjRef`、`ray_alignment`、`include_geom_groups` 等），不保留 Isaac Lab 风格的 `prim_path`、`mesh_prim_paths`、`attach_yaw_only` 等字段。
+**核心原则**: 底层继承 `mjlab.sensor.RayCastSensor`，使用 `mujoco_warp.rays()` BVH 加速光线投射。配置全部采用 mjlab 原生字段（`frame=ObjRef`、`ray_alignment`、`include_geom_groups` 等），不保留 旧框架 风格的 `prim_path`、`mesh_prim_paths`、`attach_yaw_only` 等字段。
 
 ---
 
@@ -51,9 +51,9 @@ RayCastSensor (mjlab)                     # 高度扫描直接使用
 
 ### 2.1 高度扫描（RayCastSensorCfg）
 
-**Isaac Lab:**
+**旧框架:**
 ```python
-from isaaclab.sensors import RayCasterCfg, patterns
+from legacy_framework.sensors import RayCasterCfg, patterns
 
 height_scanner = RayCasterCfg(
     prim_path="{ENV_REGEX_NS}/Robot/torso_link",
@@ -89,10 +89,10 @@ height_scanner = RayCastSensorCfg(
 
 mjlab 原生 `RayCastSensorCfg` 不支持「深度图像投影」和「噪声管线」，需使用 Instinct_mjlab 扩展类。但配置字段全部用 mjlab 原生风格。
 
-**Isaac Lab:**
+**旧框架:**
 ```python
 from instinctlab.sensors import NoisyGroupedRayCasterCameraCfg
-from isaaclab.sensors import patterns
+from legacy_framework.sensors import patterns
 
 camera = NoisyGroupedRayCasterCameraCfg(
     prim_path="{ENV_REGEX_NS}/Robot/torso_link",
@@ -157,7 +157,7 @@ camera = NoisyGroupedRayCasterCameraCfg(
 
 ### 3.1 RayCasterCfg → RayCastSensorCfg
 
-| Isaac Lab | mjlab | 说明 |
+| 旧框架 | mjlab | 说明 |
 |---|---|---|
 | `prim_path="{ENV_REGEX_NS}/Robot/torso_link"` | `frame=ObjRef(type="body", name="torso_link", entity="robot")` | body/site/geom 三种引用类型 |
 | `offset=OffsetCfg(pos=...)` | 直接编码到 pattern 的射线起点 | 高度偏移在观测函数 `offset` 参数中处理 |
@@ -179,7 +179,7 @@ camera = NoisyGroupedRayCasterCameraCfg(
 
 ### 3.3 PinholeCameraPatternCfg
 
-| Isaac Lab | mjlab | 说明 |
+| 旧框架 | mjlab | 说明 |
 |---|---|---|
 | `focal_length` + `horizontal_aperture` + `vertical_aperture` | `fovy`（垂直视场角，度） | mjlab 用单一 fovy 参数 |
 | `height`, `width` | `height`, `width` | 直接对应 |
@@ -193,7 +193,7 @@ camera = NoisyGroupedRayCasterCameraCfg(
 
 ### 4.1 RayCastData
 
-| Isaac Lab `RayCasterData` | mjlab `RayCastData` | 说明 |
+| 旧框架 `RayCasterData` | mjlab `RayCastData` | 说明 |
 |---|---|---|
 | `pos_w` [N, 3] | `pos_w` [B, 3] | 传感器原点世界坐标 |
 | `quat_w` [N, 4] | `quat_w` [B, 4] | 传感器朝向 |
@@ -230,7 +230,7 @@ camera = NoisyGroupedRayCasterCameraCfg(
 
 ## 5. 执行流程对照
 
-### Isaac Lab
+### 旧框架
 
 ```
 RayCaster._initialize_warp_meshes()  → 加载 USD mesh 到 warp
@@ -285,7 +285,7 @@ NoisyGroupedRayCasterCamera.postprocess_rays()  # 覆写
 
 ## 6. 场景挂载方式
 
-### Isaac Lab
+### 旧框架
 
 ```python
 @configclass
@@ -349,7 +349,7 @@ def make_perceptive_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
 ### 7.1 height_scan
 
-**Isaac Lab:**
+**旧框架:**
 ```python
 height_scan = ObsTerm(
     func=mdp.height_scan,
@@ -672,7 +672,7 @@ def make_perceptive_env_cfg() -> ManagerBasedRlEnvCfg:
 
 ## 12. 已知限制
 
-1. **include_geom_groups**: mjlab 按 MuJoCo geom group 过滤碰撞体。若原 Isaac Lab 依赖精确 mesh 路径匹配（只对地形做光线投射），需确保对应 geom 的 group 编号正确。
+1. **include_geom_groups**: mjlab 按 MuJoCo geom group 过滤碰撞体。若原 旧框架 依赖精确 mesh 路径匹配（只对地形做光线投射），需确保对应 geom 的 group 编号正确。
 
 2. **GroupedRayCaster 扩展必要性**: mjlab 原生 `RayCastSensor` 不暴露 `ray_starts` / `ray_directions` 缓冲区，无法直接用于 `randomize_ray_offsets`。需要噪声深度图或射线随机化时仍需使用 GroupedRayCaster 系列扩展。
 

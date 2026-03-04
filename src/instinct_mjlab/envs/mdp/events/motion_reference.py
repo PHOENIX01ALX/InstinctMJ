@@ -42,7 +42,7 @@ def virtualize_articulation(
         body_ids_local = torch.tensor(asset_cfg.body_ids, dtype=torch.long, device=env.device)
         body_ids = asset.indexing.body_ids[body_ids_local]
 
-    # MuJoCo does not provide a PhysX-style per-body gravity toggle.
+    # MuJoCo does not provide a legacy-backend-style per-body gravity toggle.
     # gravcomp=1.0 compensates full gravity for the selected bodies.
     env_grid, body_grid = torch.meshgrid(env_ids, body_ids, indexing="ij")
     env.sim.model.body_gravcomp[env_grid, body_grid] = 1.0

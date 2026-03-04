@@ -80,22 +80,8 @@ class AmassMotionCfg(AmassMotionCfgBase):
 
 def _make_motion_reference_cfg() -> MotionReferenceManagerCfg:
   """Build parkour motion reference manager config."""
-  # Use MJCF-native symmetric augmentation buffers directly.
-  model = mujoco.MjModel.from_xml_path(G1_MJCF_PATH)
-  mjlab_joint_order: list[str] = []
-  for joint_id in range(model.njnt):
-    if model.jnt_type[joint_id] == mujoco.mjtJoint.mjJNT_FREE:
-      continue
-    joint_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, joint_id)
-    if not joint_name:
-      continue
-    mjlab_joint_order.append(joint_name)
-
   symmetric_joint_mapping_mjlab = list(G1_29Dof_TorsoBase_symmetric_augmentation_joint_mapping)
   symmetric_joint_reverse_buf_mjlab = list(G1_29Dof_TorsoBase_symmetric_augmentation_joint_reverse_buf)
-
-  assert len(symmetric_joint_mapping_mjlab) == len(mjlab_joint_order)
-  assert len(symmetric_joint_reverse_buf_mjlab) == len(mjlab_joint_order)
 
   return MotionReferenceManagerCfg(
     name="motion_reference",

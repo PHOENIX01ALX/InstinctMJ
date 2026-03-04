@@ -21,7 +21,7 @@ class VolumePointsData:
 
     Note:
         In mjlab (MuJoCo), the quaternion is in the format (w, x, y, z).
-        Original IsaacLab used (x, y, z, w) format with explicit conversion.
+        Legacy data sometimes used (x, y, z, w) format with explicit conversion.
     """
 
     vel_w: torch.Tensor = MISSING

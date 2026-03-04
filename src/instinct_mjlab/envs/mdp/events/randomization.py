@@ -402,12 +402,12 @@ def randomize_rigid_body_material(
 ) -> None:
     """Randomize rigid body material properties with MuJoCo-equivalent friction.
 
-    InstinctLab/PhysX uses static+dynamic friction and restitution. MuJoCo geoms
+    Legacy configuration uses static+dynamic friction and restitution. MuJoCo geoms
     expose slide/spin/roll friction and no direct restitution coefficient. We map
     static+dynamic friction ranges to slide friction (axis 0) and keep the
     restitution argument for API compatibility.
     """
-    # Closest MuJoCo equivalent to PhysX static/dynamic friction is slide
+    # Closest MuJoCo equivalent to legacy static/dynamic friction is slide
     # friction. Use both ranges to form a conservative interval.
     slide_friction_range = (
         min(static_friction_range[0], dynamic_friction_range[0]),

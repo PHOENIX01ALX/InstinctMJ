@@ -43,9 +43,9 @@ def _find_flat_patches_on_surface_mesh(
     z_range: tuple[float, float],
     max_height_diff: float,
 ) -> np.ndarray:
-    """Find flat patches on mesh terrains (IsaacLab-compatible behavior).
+    """Find flat patches on mesh terrains (legacy-compatible behavior).
 
-    This mirrors IsaacLab's mesh-based `find_flat_patches()` flow used by the
+    This mirrors the legacy mesh-based `find_flat_patches()` flow used by the
     original InstinctLab terrain generator:
     1. Sample XY candidates in configured local ranges around `origin`.
     2. Ray-cast circular footprints onto the mesh.
@@ -207,7 +207,7 @@ class FiledTerrainGenerator(TerrainGenerator):
     def _sync_subterrain_scales(cfg: FiledTerrainGeneratorCfg) -> None:
         """Apply generator-level scales to all compatible sub-terrains.
 
-        InstinctLab/IsaacLab terrain generation treats ``horizontal_scale``,
+        Legacy InstinctLab terrain generation treats ``horizontal_scale``,
         ``vertical_scale`` and ``slope_threshold`` as generator-wide settings.
         Parkour configs rely on this behavior (for example stair step discretization).
         """
@@ -245,7 +245,7 @@ class FiledTerrainGenerator(TerrainGenerator):
         # consistently flat outer ring before tile stitching.
         stitch_border_width = max(wall_thickness, cfg_border_width, global_stitch_border_width)
         if stitch_border_width > 0.0:
-            # Match IsaacLab/InstinctLab border discretization semantics used by
+            # Match legacy InstinctLab border discretization semantics used by
             # `height_field_to_mesh`: `int(width / scale) + 1`.
             # This avoids a one-pixel under-coverage when width is an exact
             # multiple of the resolution (for example 1.5m / 0.05m).
@@ -279,7 +279,6 @@ class FiledTerrainGenerator(TerrainGenerator):
             terrain_idx=terrain_linear_idx,
             terrain_abspath=None,
         )
-        assert hfield_geometry.geom is not None
         hfield_geometry.geom.pos = np.asarray(hfield_geometry.geom.pos, dtype=np.float64) + world_position
         hfield_geometry.geom.group = 0
         if self.cfg.color_scheme == "random":

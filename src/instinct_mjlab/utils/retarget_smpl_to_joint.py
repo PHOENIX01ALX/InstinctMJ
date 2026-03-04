@@ -25,7 +25,7 @@ def retarget_smpl_to_h1_joints(
     - smpl_poses: np.ndarray, shape (N, 24, 3), each vector is a joint axis-angle w.r.t its parent joint.
     - return_link_orientations: bool, whether to return link orientation in base link
     """
-    raise NotImplementedError("This function is not checked with IsaacSim joint order yet.")
+    raise NotImplementedError("This function is not checked with the current joint order yet.")
     smpl_quats = math_utils.quat_from_angle_axis(
         torch.norm(smpl_poses.view(-1, 3), dim=-1),
         smpl_poses.view(-1, 3),

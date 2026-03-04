@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import MISSING, dataclass
 
 from mjlab.envs.mdp import JointPositionActionCfg
 from mjlab.managers import ActionTerm, SceneEntityCfg
@@ -14,7 +14,7 @@ class ActionOverridenJointPositionActionCfg(JointPositionActionCfg):
 
     class_type: type[ActionTerm] = joint_actions.ActionOverridenJointPositionAction
 
-    asset_cfg: SceneEntityCfg = None
+    asset_cfg: SceneEntityCfg = MISSING
     """Whether to override the action with the delayed action. Defaults to False."""
 
     override_value: float = 0.0

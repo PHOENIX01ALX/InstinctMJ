@@ -1,11 +1,7 @@
-"""AMASS motion filtering script (mjlab migration).
+"""AMASS motion filtering script.
 
 Filters AMASS motion capture data by retargetting to a robot model and
 applying a battery of kinematic/dynamic validity checks.
-
-Original: InstinctLab/scripts/amass_filter.py
-Migrated: removes Isaac Sim AppLauncher dependency; uses pytorch_kinematics
-          and mjlab math utilities directly.
 """
 
 from __future__ import annotations

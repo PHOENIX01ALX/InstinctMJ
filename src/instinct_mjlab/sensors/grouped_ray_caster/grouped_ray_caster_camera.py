@@ -66,13 +66,11 @@ class CameraData:
     @property
     def quat_w_ros(self) -> torch.Tensor:
         """Quaternion orientation `(w, x, y, z)` of the sensor origin in the world frame, following ROS convention."""
-        assert self.quat_w_world is not None
         return math_utils.convert_camera_frame_orientation_convention(self.quat_w_world, origin="world", target="ros")
 
     @property
     def quat_w_opengl(self) -> torch.Tensor:
         """Quaternion orientation `(w, x, y, z)` of the sensor origin in the world frame, following OpenGL convention."""
-        assert self.quat_w_world is not None
         return math_utils.convert_camera_frame_orientation_convention(
             self.quat_w_world, origin="world", target="opengl"
         )
@@ -182,7 +180,6 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         # compute intrinsic matrices
         self._compute_intrinsic_matrices()
         # Compute camera rays from intrinsic matrices.
-        assert self._camera_data.intrinsic_matrices is not None
         self.ray_starts, self.ray_directions = self._compute_pinhole_rays_from_intrinsics(
             self._camera_data.intrinsic_matrices
         )
@@ -212,14 +209,11 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         # resolve env_ids
         if env_ids is None:
             env_ids = self._ALL_INDICES
-        assert self._device is not None
         env_ids = torch.as_tensor(env_ids, device=self._device, dtype=torch.long)
         # save new intrinsic matrices and focal length
-        assert self._camera_data.intrinsic_matrices is not None
         self._camera_data.intrinsic_matrices[env_ids] = matrices.to(self._device)
         self._focal_length = focal_length
         # recompute ray directions
-        assert self.ray_starts is not None and self.ray_directions is not None
         ray_starts, ray_directions = self._compute_pinhole_rays_from_intrinsics(
             self._camera_data.intrinsic_matrices[env_ids]
         )
@@ -232,12 +226,10 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         # resolve None
         if env_ids is None:
             env_ids = self._ALL_INDICES
-        assert self._device is not None
         env_ids = torch.as_tensor(env_ids, device=self._device, dtype=torch.long)
         # reset the data
         # note: this recomputation is useful if one performs events such as randomizations on the camera poses.
         pos_w, quat_w = self._compute_camera_world_poses(env_ids)
-        assert self._camera_data.pos_w is not None and self._camera_data.quat_w_world is not None
         self._camera_data.pos_w[env_ids] = pos_w
         self._camera_data.quat_w_world[env_ids] = quat_w
         # Reset the frame count
@@ -285,7 +277,6 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         # resolve env_ids
         if env_ids is None:
             env_ids = self._ALL_INDICES
-        assert self._device is not None
         env_ids = torch.as_tensor(env_ids, device=self._device, dtype=torch.long)
 
         # get current positions
@@ -293,19 +284,16 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         if positions is not None:
             # transform to camera frame
             pos_offset_world_frame = positions.to(self._device) - pos_w
-            assert self._offset_pos is not None
             self._offset_pos[env_ids] = math_utils.quat_apply(math_utils.quat_inv(quat_w), pos_offset_world_frame)
         if orientations is not None:
             # convert rotation matrix from input convention to world
             quat_w_set = math_utils.convert_camera_frame_orientation_convention(
                 orientations.to(self._device), origin=convention, target="world"
             )
-            assert self._offset_quat is not None
             self._offset_quat[env_ids] = math_utils.quat_mul(math_utils.quat_inv(quat_w), quat_w_set)
 
         # update the data
         pos_w, quat_w = self._compute_camera_world_poses(env_ids)
-        assert self._camera_data.pos_w is not None and self._camera_data.quat_w_world is not None
         self._camera_data.pos_w[env_ids] = pos_w
         self._camera_data.quat_w_world[env_ids] = quat_w
 
@@ -326,7 +314,6 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         Note:
             In MuJoCo (mjlab), the up-axis is always "Z", so the NotImplementedError will not be raised.
         """
-        assert self._device is not None
         # camera position and rotation in opengl convention
         orientations = math_utils.quat_from_matrix(
             math_utils.create_rotation_matrix_from_view(eyes, targets, up_axis="Z", device=self._device)
@@ -339,12 +326,9 @@ class GroupedRayCasterCamera(GroupedRayCaster):
 
     def prepare_rays(self) -> None:
         """PRE-GRAPH: Prepare grouped camera rays from camera world poses."""
-        assert self._ray_pnt is not None and self._ray_vec is not None
-        assert self.ray_starts is not None and self.ray_directions is not None
 
         env_ids = self._ALL_INDICES
         pos_w, quat_w = self._compute_camera_world_poses(env_ids)
-        assert self._camera_data.pos_w is not None and self._camera_data.quat_w_world is not None
         if self._update_period_s > 0.0:
             refresh_mask = self._elapsed_since_refresh >= (self._update_period_s - 1e-8)
             self._refresh_mask = refresh_mask
@@ -389,19 +373,12 @@ class GroupedRayCasterCamera(GroupedRayCaster):
             stale_mask = ~self._refresh_mask
             if torch.any(stale_mask):
                 stale_env_ids = stale_mask.nonzero(as_tuple=False).squeeze(-1)
-                assert self._camera_data.output is not None
                 for data_type in self.cfg.data_types:
                     stale_cached_outputs[data_type] = self._camera_data.output[data_type][stale_env_ids].clone()
 
-        assert self._cached_world_rays is not None
-        assert self._distances is not None
-        assert self._normals_w is not None
-        assert self._hit_pos_w is not None
-        assert self._camera_data.output is not None
 
         ray_directions_w = self._cached_world_rays
 
-        assert self._camera_data.quat_w_world is not None
         quat_w = self._camera_data.quat_w_world
         ray_depth_camera = self._distances.clone()
         ray_depth_camera[ray_depth_camera < 0] = float("inf")
@@ -410,7 +387,7 @@ class GroupedRayCasterCamera(GroupedRayCaster):
 
         # update output buffers
         if "distance_to_image_plane" in self.cfg.data_types:
-            # Keep InstinctLab/Isaac convention: camera forward is +X in camera-local frame.
+            # Keep legacy camera convention: camera forward is +X in camera-local frame.
             quat_inv = math_utils.quat_inv(quat_w).unsqueeze(1).expand(-1, self.num_rays, -1).reshape(-1, 4)
             image_ray_vec = (ray_depth_image[:, :, None] * ray_directions_w).reshape(-1, 3)
             distance_to_image_plane = math_utils.quat_apply(quat_inv, image_ray_vec).view(
@@ -448,8 +425,6 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         """
         if not self.cfg.debug_vis:
             return
-        assert self._hit_pos_w is not None
-        assert self._camera_data.pos_w is not None and self._camera_data.quat_w_world is not None
 
         env_ids = list(visualizer.get_env_indices(self._num_envs))
         if not env_ids:
@@ -515,7 +490,6 @@ class GroupedRayCasterCamera(GroupedRayCaster):
 
     def _create_buffers(self):
         """Create buffers for storing data."""
-        assert self._device is not None
         # prepare drift
         self.drift = torch.zeros(self._num_envs, 3, device=self._device)
         # create the data object
@@ -562,7 +536,6 @@ class GroupedRayCasterCamera(GroupedRayCaster):
             c_y = pattern_cfg.height / 2
             self._focal_length = 1.0
 
-        assert self._camera_data.intrinsic_matrices is not None
         # allocate the intrinsic matrices
         self._camera_data.intrinsic_matrices[:, 0, 0] = f_x
         self._camera_data.intrinsic_matrices[:, 0, 2] = c_x
@@ -570,8 +543,7 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         self._camera_data.intrinsic_matrices[:, 1, 2] = c_y
 
     def _compute_pinhole_rays_from_intrinsics(self, intrinsic_matrices: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute pinhole rays from intrinsic matrices in InstinctLab/Isaac camera convention."""
-        assert self._device is not None
+        """Compute pinhole rays from intrinsic matrices in legacy camera convention."""
         # get image plane mesh grid
         grid = torch.meshgrid(
             torch.arange(start=0, end=self.cfg.pattern.width, dtype=torch.int32, device=self._device),
@@ -604,19 +576,14 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         Returns:
             A tuple of the position (in meters) and quaternion (w, x, y, z).
         """
-        assert self._data is not None
-        assert self._device is not None
         env_ids = torch.as_tensor(env_ids, device=self._device, dtype=torch.long)
         if self._frame_type == "body":
-            assert self._frame_body_id is not None
             pos_w = self._data.xpos[env_ids, self._frame_body_id]
             quat_w = self._data.xquat[env_ids, self._frame_body_id]
         elif self._frame_type == "site":
-            assert self._frame_site_id is not None
             pos_w = self._data.site_xpos[env_ids, self._frame_site_id]
             quat_w = math_utils.quat_from_matrix(self._data.site_xmat[env_ids, self._frame_site_id].view(-1, 3, 3))
         elif self._frame_type == "geom":
-            assert self._frame_geom_id is not None
             pos_w = self._data.geom_xpos[env_ids, self._frame_geom_id]
             quat_w = math_utils.quat_from_matrix(self._data.geom_xmat[env_ids, self._frame_geom_id].view(-1, 3, 3))
         else:
@@ -632,13 +599,11 @@ class GroupedRayCasterCamera(GroupedRayCaster):
         Returns:
             A tuple of the position (in meters) and quaternion (w, x, y, z) in "world" convention.
         """
-        assert self._device is not None
         env_ids = torch.as_tensor(env_ids, device=self._device, dtype=torch.long)
         # get the pose of the view the camera is attached to
         pos_w, quat_w = self._compute_view_world_poses(env_ids)
         # apply offsets
         # need to apply quat because offset relative to parent frame
-        assert self._offset_pos is not None and self._offset_quat is not None
         pos_w += math_utils.quat_apply(quat_w, self._offset_pos[env_ids])
         quat_w = math_utils.quat_mul(quat_w, self._offset_quat[env_ids])
 

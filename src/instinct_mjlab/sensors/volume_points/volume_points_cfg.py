@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import MISSING, dataclass, field
 
 from instinct_mjlab.visualization.marker_cfg import VisualizationMarkersCfg
 from mjlab.sensor import SensorCfg
@@ -45,7 +45,7 @@ class VolumePointsCfg(SensorCfg):
 
     """
 
-    points_generator: PointsGeneratorCfg = None
+    points_generator: PointsGeneratorCfg = MISSING
     """ The points generator configuration. The generator function should be callable and accept only its cfg.
     """
 

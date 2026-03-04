@@ -1,4 +1,4 @@
-# copied from https://github.com/isaac-sim/IsaacLab/blob/main/.flake8
+# copied from upstream style template
 
 [flake8]
 show-source=True

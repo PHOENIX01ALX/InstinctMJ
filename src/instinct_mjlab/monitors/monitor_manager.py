@@ -73,7 +73,7 @@ class MonitorManager(ManagerBase):
     _env: ManagerBasedRLEnv
 
     def __init__(self, cfg, env: ManagerBasedRLEnv):
-        self.cfg = cfg if cfg is not None else {}
+        self.cfg = cfg
         self._terms: dict[str, MonitorTerm | MonitorSensor] = dict()
         self._manager_owned_sensors: set[str] = set()
         super().__init__(env=env)

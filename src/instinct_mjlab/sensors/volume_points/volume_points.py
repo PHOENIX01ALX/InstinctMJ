@@ -133,17 +133,12 @@ class VolumePoints(Sensor[VolumePointsData]):
         )
 
     def _compute_data(self) -> VolumePointsData:
-        assert self._sensor_data is not None
         self._refresh_volume_points(self._ALL_INDICES)
         self._refresh_penetration_offset(self._ALL_INDICES)
         return self._sensor_data
 
     def _refresh_volume_points(self, env_ids: Sequence[int] | torch.Tensor | None = None) -> None:
         """Refresh the volume points data. If env_ids is None, refresh all environments."""
-        assert self._data is not None
-        assert self._body_ids is not None
-        assert self._sensor_data is not None
-        assert self._volume_points_pattern is not None
 
         env_ids = self._resolve_env_ids(env_ids)
         body_poses_pos = self._data.xpos[env_ids][:, self._body_ids]  # (N_, B, 3)
@@ -178,7 +173,6 @@ class VolumePoints(Sensor[VolumePointsData]):
 
     def _refresh_penetration_offset(self, env_ids: Sequence[int] | torch.Tensor) -> None:
         """Refresh the penetration depth data. If env_ids is None, refresh all environments."""
-        assert self._sensor_data is not None
         env_ids = self._resolve_env_ids(env_ids)
 
         penetration_offset_buf: torch.Tensor = self._sensor_data.penetration_offset[env_ids]
@@ -237,7 +231,6 @@ class VolumePoints(Sensor[VolumePointsData]):
     def _resolve_env_ids(self, env_ids: Sequence[int] | torch.Tensor | None) -> torch.Tensor:
         if env_ids is None:
             return self._ALL_INDICES
-        assert self._device is not None
         return torch.as_tensor(env_ids, device=self._device, dtype=torch.long)
 
     def _resolve_body_ids(self, mj_model: mujoco.MjModel) -> tuple[list[int], list[str]]:

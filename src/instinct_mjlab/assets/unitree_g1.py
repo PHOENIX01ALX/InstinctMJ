@@ -1,4 +1,4 @@
-"""Customized Unitree G1 asset for mjlab migration."""
+"""Customized Unitree G1 asset definitions."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ import mujoco
 
 from mjlab.actuator import (
   ActuatorCfg,
-  BuiltinPositionActuatorCfg,
 )
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
@@ -500,7 +499,6 @@ G1_29Dof_TorsoBase_symmetric_augmentation_joint_reverse_buf = [
 
 beyondmimic_action_scale: dict[str, float] = {}
 for actuator_cfg in beyondmimic_g1_29dof_actuator_cfgs:
-  assert isinstance(actuator_cfg, BuiltinPositionActuatorCfg)
   effort = actuator_cfg.effort_limit
   stiffness = actuator_cfg.stiffness
   if effort is None or stiffness == 0.0:

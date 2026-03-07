@@ -124,6 +124,12 @@ Reference links:
 - Original README: `https://github.com/project-instinct/InstinctLab/blob/main/README.md`
 - Local reference in this workspace: `../InstinctLab`
 
+## License and Contributing
+
+- License: `CC BY-NC 4.0`, see `LICENSE`
+- Contribution guide: `CONTRIBUTING.md`
+- Contributor agreement: `CONTRIBUTOR_AGREEMENT.md`
+
 ## Task Documentation
 
 - Shadowing: `src/instinct_mj/tasks/shadowing/README.md`

@@ -921,7 +921,6 @@ def instinct_g1_parkour_amp_env_cfg(
 
         cfg.scene.terrain.collision_debug_vis = True
         cfg.commands["base_velocity"].debug_vis = True
-        cfg.viewer.debug_vis_show_all_envs = True
         cfg.terminations["root_height"] = None
         cfg.events["physics_material"] = None
         cfg.events["reset_robot_joints"].params = {
@@ -965,8 +964,6 @@ def instinct_g1_parkour_amp_final_cfg(
             origin_type=ViewerConfig.OriginType.WORLD,
             entity_name=None,
         )
-        # Keep debug visualization for all environments after replacing viewer config.
-        cfg.viewer.debug_vis_show_all_envs = True
         cfg.viewer.origin_type = ViewerConfig.OriginType.WORLD
         cfg.viewer.entity_name = None
         cfg.viewer.body_name = None

@@ -1,6 +1,6 @@
 # BeyondMimic Task
 
-This directory contains the `InstinctMJ` BeyondMimic task, adapted from the original InstinctLab implementation while preserving the BeyondMimic whole-body tracking setup (https://github.com/HybridRobotics/whole_body_tracking).
+This directory contains the `InstinctMJ` BeyondMimic task for whole-body tracking on `mjlab`, following the BeyondMimic setup (https://github.com/HybridRobotics/whole_body_tracking).
 
 ## Structure
 
@@ -77,13 +77,13 @@ env_cfg = g1_beyondmimic_plane_env_cfg(play=False)
 agent_cfg = g1_beyondmimic_instinct_rl_cfg()
 ```
 
-## Differences from Original BeyondMimic
+## Implementation Notes
 
-While following the BeyondMimic approach, this implementation adapts to the current codebase's `InstinctMJ` / `mjlab` patterns:
+This task is organized around the current `InstinctMJ` / `mjlab` layout:
 
 1. **Task Registration**: Registers train/play tasks through `register_instinct_task()`
 2. **Environment Factory**: Uses `g1_beyondmimic_plane_env_cfg(play=...)` to switch between train and play setup
-3. **Manager Style**: Keeps manager configuration in native `mjlab` / `InstinctMJ` terms without a compatibility layer
+3. **Manager Style**: Keeps manager configuration in native `mjlab` / `InstinctMJ` terms
 4. **Asset Integration**: Uses the G1 MJCF asset and `instinct_mj` motion reference stack
 5. **Training Workflow**: Runs through the shared `instinct-train` / `instinct-play` entry points
 
@@ -96,7 +96,5 @@ The configuration is set up to use the Ubisoft LAFAN-1 dataset with GMR retarget
 
 ## References
 
-- Original InstinctLab README:
-  `https://github.com/project-instinct/InstinctLab/blob/main/source/instinctlab/instinctlab/tasks/shadowing/beyondmimic/README.md`
 - BeyondMimic: https://github.com/HybridRobotics/whole_body_tracking
 - LAFAN-1 Dataset: https://github.com/ubisoft/ubisoft-laforge-animation-dataset

@@ -1,14 +1,6 @@
 # Shadowing Task
 
-This README follows the original InstinctLab shadowing usage notes, adapted to the `InstinctMJ` task registry and CLI.
-
-## InstinctLab Original Sources
-
-- InstinctLab repository: `https://github.com/project-instinct/InstinctLab`
-- Original shadowing README:
-  `https://github.com/project-instinct/InstinctLab/blob/main/source/instinctlab/instinctlab/tasks/shadowing/README.md`
-- Original perceptive shadowing config:
-  `https://github.com/project-instinct/InstinctLab/blob/main/source/instinctlab/instinctlab/tasks/shadowing/perceptive/config/g1/perceptive_shadowing_cfg.py`
+Usage notes for the `InstinctMJ` shadowing task family on `mjlab`.
 
 ## Prerequisite
 
@@ -22,7 +14,7 @@ Install `mjlab` and `instinct_rl` source code first (see `InstinctMJ/README.md` 
 - `Instinct-BeyondMimic-Plane-G1-v0` (train)
 - `Instinct-BeyondMimic-Plane-G1-Play-v0` (play)
 
-This is an exact replication of the BeyondMimic training configuration.
+This task follows the BeyondMimic whole-body tracking setup.
 
 1. Go to `beyondmimic/config/g1/beyondmimic_plane_cfg.py` and set the motion source:
 
@@ -84,7 +76,7 @@ instinct-play Instinct-Perceptive-Shadowing-G1-Play-v0 --load-run <run_name>
 
 4. Current maintained setup notes in this workspace (as of `2026-03-09`):
 
-    - Pretrained weights: publish separately through Google Drive or another external file host
+    - Pretrained weights: `https://drive.google.com/drive/folders/1RPjbZjurknhlvlj9dxAUkARkcEyexQvF?usp=sharing`
     - Play command:
 
 ```bash

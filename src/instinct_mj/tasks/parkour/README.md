@@ -1,6 +1,6 @@
 # Parkour Task
 
-This README follows the original InstinctLab parkour usage notes, adapted to the `InstinctMJ` task registry and CLI.
+Usage notes for the `InstinctMJ` parkour task family on `mjlab`.
 
 ## Basic Usage Guidelines
 

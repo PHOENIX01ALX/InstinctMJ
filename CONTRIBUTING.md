@@ -2,7 +2,7 @@
 
 Thank you for helping improve `InstinctMJ`.
 
-This repository is the `mjlab`-native port of InstinctLab tasks, so contributions should prioritize behavior fidelity, clear validation, and minimal, focused changes.
+This repository provides humanoid RL tasks on top of `mjlab`, so contributions should prioritize clear validation and minimal, focused changes.
 
 ## Before You Start
 

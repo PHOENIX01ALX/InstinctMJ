@@ -14,24 +14,23 @@ We aim to industrialize Reinforcement Learning for humanoid whole-body control, 
 
 **Key Features:**
 
-- `Native mjlab stack` Build tasks with `mjlab`'s manager-based API and run them on the GPU through `mujoco_warp`, without a runtime IsaacLab compatibility layer.
-- `Behavior-preserving migration` Port locomotion, shadowing, perceptive, and parkour tasks while keeping task semantics aligned with InstinctLab.
-- `Standalone task package` Keep the task suite outside the core `mjlab` repository while registering environments through the `mjlab.tasks` entry point.
-- `Project-Instinct workflow` Plug directly into `instinct_rl` for train / play / export workflows, with logs under `logs/instinct_rl/<experiment_name>/<timestamp_run>/`.
+- `Standalone package` Work outside the core `mjlab` repository while keeping task development self-contained.
+- `Task suite` Provide locomotion, shadowing, perceptive, and parkour task families for humanoid control on `mjlab`.
+- `Unified ecosystem` Integrate directly with [instinct_rl](https://github.com/project-instinct/instinct_rl) for train / play / export workflows.
+- `Structured outputs` Keep experiment logs under `logs/instinct_rl/<experiment_name>/<timestamp_run>/` to match the Project-Instinct workflow.
 
 **Keywords:** mjlab, mujoco-warp, instinct_rl, humanoid
 
 ## Warning
 
-This codebase is under [CC BY-NC 4.0 license](LICENSE). As with InstinctLab, you may not use the material for commercial purposes, for example to advertise commercial products or redistribute the code as part of a commercial offering.
+This codebase is under [CC BY-NC 4.0 license](LICENSE). You may not use the material for commercial purposes, for example to advertise commercial products or redistribute the code as part of a commercial offering.
 
 ## Attention
 
-Do not directly use checkpoints trained in InstinctLab with `InstinctMJ`.
+Do not directly use checkpoints trained outside `InstinctMJ` with `InstinctMJ`.
 
 - `InstinctMJ` loads the robot from XML / MJCF, and the resulting joint order is not the same as the joint order used in IsaacLab.
-- Even when the task semantics are migrated one-to-one, policy inputs / outputs tied to joint ordering are therefore not directly checkpoint-compatible.
-- In practice, InstinctLab weights should be treated as incompatible with `InstinctMJ` unless you perform an explicit, validated joint-order remapping.
+- Policy inputs / outputs tied to joint ordering are therefore not directly checkpoint-compatible across different simulator setups.
 - Please release and use weights trained in `InstinctMJ` for `InstinctMJ` tasks.
 
 ## Contributing
@@ -89,18 +88,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [CONTRIBUTOR_AGREEMENT.md](CONTRIBUTO
   instinct-play Instinct-Locomotion-Flat-G1-Play-v0 --load-run <run_name>
   ```
 
-## Documentation of Critical Components
-
-- [instinct_rl Documentation](https://github.com/project-instinct/instinct_rl/blob/main/README.md)
-- [mjlab Repository](https://github.com/mujocolab/mjlab)
-- [MuJoCo Warp Repository](https://github.com/google-deepmind/mujoco_warp)
-- Original InstinctLab repository: `https://github.com/project-instinct/InstinctLab`
-- Original InstinctLab README: `https://github.com/project-instinct/InstinctLab/blob/main/README.md`
-- Shadowing documentation: `src/instinct_mj/tasks/shadowing/README.md`
-- BeyondMimic documentation: `src/instinct_mj/tasks/shadowing/beyondmimic/README.md`
-- Parkour documentation: `src/instinct_mj/tasks/parkour/README.md`
-
-### Set up IDE (Optional)
+## Set up IDE (Optional)
 
 If VSCode / Pylance misses local imports in a multi-repository workspace, add these paths to `.vscode/settings.json`:
 
@@ -164,7 +152,7 @@ instinct-play Instinct-Perceptive-Shadowing-G1-Play-v0 \
 
 Pretrained weights:
 
-- Google Drive: `<add_link_here>`
+- Google Drive: `https://drive.google.com/drive/folders/1RPjbZjurknhlvlj9dxAUkARkcEyexQvF?usp=sharing`
 
 Export ONNX for parkour:
 
@@ -182,7 +170,7 @@ python -m instinct_mj.scripts.list_envs
 
 ## Code Formatting
 
-We use `pre-commit` for formatting and hygiene checks, similar to the original InstinctLab workflow.
+We use `pre-commit` for formatting and hygiene checks.
 
 Install `pre-commit`:
 
@@ -248,11 +236,9 @@ register_instinct_task(
 - Training logs are written to `logs/instinct_rl/<experiment_name>/<timestamp_run>/`
 - Play videos are saved under `videos/play/` in the selected run directory
 
-## Relationship to InstinctLab
+## Related Projects
 
-`InstinctMJ` is the MuJoCo Warp / `mjlab` counterpart to InstinctLab in the Project-Instinct ecosystem.
+Other repositories in the Project-Instinct ecosystem:
 
-Reference links:
-
-- Original repository: `https://github.com/project-instinct/InstinctLab`
-- Original README: `https://github.com/project-instinct/InstinctLab/blob/main/README.md`
+- `InstinctLab`: `https://github.com/project-instinct/InstinctLab`
+- `instinct_rl`: `https://github.com/project-instinct/instinct_rl`

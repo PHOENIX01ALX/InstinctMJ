@@ -76,7 +76,7 @@ instinct-play Instinct-Perceptive-Shadowing-G1-Play-v0 --load-run <run_name>
 
 4. Current maintained setup notes in this workspace (as of `2026-03-09`):
 
-    - Pretrained weights: `https://drive.google.com/drive/folders/1RPjbZjurknhlvlj9dxAUkARkcEyexQvF?usp=sharing`
+    - Pretrained weights: [Google Drive folder](https://drive.google.com/drive/folders/1RPjbZjurknhlvlj9dxAUkARkcEyexQvF?usp=sharing)
     - Play command:
 
 ```bash

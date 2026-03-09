@@ -152,7 +152,7 @@ instinct-play Instinct-Perceptive-Shadowing-G1-Play-v0 \
 
 Pretrained weights:
 
-- Google Drive: `https://drive.google.com/drive/folders/1RPjbZjurknhlvlj9dxAUkARkcEyexQvF?usp=sharing`
+- Google Drive: [Pretrained weights](https://drive.google.com/drive/folders/1RPjbZjurknhlvlj9dxAUkARkcEyexQvF?usp=sharing)
 
 Export ONNX for parkour:
 

